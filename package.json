@@ -1,0 +1,25 @@
+{
+  "name": "react-is-cool",
+  "version": "1.0.0",
+  "description": "A demo to show how to use ReactJS and React-Native to create a very cool project.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ytll21/react-is-cool.git"
+  },
+  "keywords": [
+    "react"
+  ],
+  "author": "K.g",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ytll21/react-is-cool/issues"
+  },
+  "homepage": "https://github.com/ytll21/react-is-cool#readme",
+  "dependencies": {
+    "express": "^4.13.3"
+  }
+}

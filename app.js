@@ -10,6 +10,9 @@ var users = require('./routes/users');
 
 var app = express();
 
+// 设定port变量，意为访问端口
+app.set('port', process.env.PORT || 3000);
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
@@ -56,5 +59,5 @@ app.use(function(err, req, res, next) {
   });
 });
 
-
-module.exports = app;
+app.listen(app.get('port'));
+//module.exports = app;

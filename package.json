@@ -1,6 +1,9 @@
 {
   "name": "react-is-cool",
   "version": "0.0.0",
+  "engines": {
+    "node": "4.1.0"
+  },
   "private": true,
   "scripts": {
     "start": "node ./bin/www"

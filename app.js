@@ -4,6 +4,7 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var mongoose = require('mongoose');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
@@ -24,6 +25,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);
 app.use('/users', users);
+
+// attach mongodb
+mongoose.connect('mongodb://127.0.0.1:27017/reactiscool')
+
+var db = mongoose.connection;
+
+db.on('error', function(err) {
+    console.log(err);
+    process.exit(1);
+});
+
+db.once('open', function (callback) {
+    app.use("/", function(err, req, res, next) {
+        req.db = db;
+        next();
+    });
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

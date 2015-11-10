@@ -16,6 +16,7 @@
     "express-handlebars": "^2.0.1",
     "mongoose": "^4.2.4",
     "morgan": "~1.6.1",
+    "progress": "^1.1.8",
     "serve-favicon": "~2.3.0",
     "underscore": "^1.8.3"
   }

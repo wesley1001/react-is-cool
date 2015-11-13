@@ -7,9 +7,6 @@ var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
 var exphbs  = require('express-handlebars');
 
-var routes = require('./routes/index');
-var users = require('./routes/users');
-
 var Home = require('./controllers/Home');
 
 var app = express();

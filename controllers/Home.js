@@ -1,3 +1,5 @@
+"use strict";
+
 var BaseController = require("./Base"),
     View = require("../views/Base"),
     model = new (require("../models/ContentModel"));
@@ -12,9 +14,9 @@ module.exports = BaseController.extend({
 
         console.log(req.query["search"]);
 
-        var search = req.query["search"];
+        const search = req.query["search"];
 
-        var v = new View(res, 'home');
+        let v = new View(res, 'home');
 
         if (search) {
             var options = {

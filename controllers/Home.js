@@ -1,10 +1,10 @@
-"use strict";
+'use strict';
 
-var BaseController = require("./Base"),
+let BaseController = require("./Base"),
     View = require("../views/Base"),
     model = new (require("../models/ContentModel"));
 
-var request = require('request');
+let request = require('request');
 
 module.exports = BaseController.extend({
     name: "Home",
@@ -19,9 +19,11 @@ module.exports = BaseController.extend({
         let v = new View(res, 'home');
 
         if (search) {
-            var options = {
-                url: 'https://api.wmcloud.com/data/v1//api/market/getMktEqud.json?field=&beginDate=&endDate=&secID=' +
-                    '&ticker=' + search + '&tradeDate=20140103',
+            let options = {
+                //url: 'https://api.wmcloud.com/data/v1//api/market/getMktEqud.json?field=&beginDate=&endDate=&secID=' +
+                //    '&ticker=' + search + '&tradeDate=20140103',
+                url: 'https://api.wmcloud.com/data/v1//api/market/getBarRTIntraDay.json?securityID=' + search +
+                    '&startTime=&endTime=&type=',
                 headers: {
                     Authorization: 'Bearer 9f32e4b8478f76b37c29b266a11f630b46e556c7cbd8edf9d1295482ca02d8af'
                 }
@@ -30,7 +32,7 @@ module.exports = BaseController.extend({
             request(options, function(error, response, body) {
                 if (!error && response.statusCode == 200) {
                     console.log(body);
-                    var info = JSON.parse(body);
+                    let info = JSON.parse(body);
 
                     if (info.retCode == 1) {
                         v.render({
@@ -51,15 +53,15 @@ module.exports = BaseController.extend({
             v.render({ secShortName: '请输入要查询的股票代码' });
         }
 
-        //var self = this;
+        //let self = this;
         //this.getContent(function() {
-        //    var v = new View(res, 'home');
+        //    let v = new View(res, 'home');
         //    //v.render(self.content);
         //    v.render({ test: "ok" });
         //})
     },
     getContent: function(callback) {
-        var self = this;
+        let self = this;
         this.content = {};
         model.getlist(function(err, records) {
             if(records.length > 0) {
@@ -67,11 +69,11 @@ module.exports = BaseController.extend({
                 self.content.bannerText = records[0].text;
             }
             model.getlist(function(err, records) {
-                var blogArticles = '';
+                let blogArticles = '';
                 if(records.length > 0) {
-                    var to = records.length < 5 ? records.length : 4;
-                    for(var i=0; i<to; i++) {
-                        var record = records[i];
+                    let to = records.length < 5 ? records.length : 4;
+                    for(let i=0; i<to; i++) {
+                        let record = records[i];
                         blogArticles += '\
 							<div class="item">\
 	                            <img src="' + record.picture + '" alt="" />\

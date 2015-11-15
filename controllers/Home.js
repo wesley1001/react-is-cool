@@ -20,10 +20,10 @@ module.exports = BaseController.extend({
 
         if (search) {
             let options = {
-                //url: 'https://api.wmcloud.com/data/v1//api/market/getMktEqud.json?field=&beginDate=&endDate=&secID=' +
-                //    '&ticker=' + search + '&tradeDate=20140103',
-                url: 'https://api.wmcloud.com/data/v1//api/market/getBarRTIntraDay.json?securityID=' + search +
-                    '&startTime=&endTime=&type=',
+                url: 'https://api.wmcloud.com/data/v1//api/market/getMktEqud.json?field=&beginDate=&endDate=&secID=' +
+                    '&ticker=' + search + '&tradeDate=20140103',
+                //url: 'https://api.wmcloud.com/data/v1//api/market/getBarRTIntraDay.json?securityID=' + search +
+                //    '&startTime=&endTime=&type=',
                 headers: {
                     Authorization: 'Bearer 9f32e4b8478f76b37c29b266a11f630b46e556c7cbd8edf9d1295482ca02d8af'
                 }

@@ -133,10 +133,11 @@ pool.getConnection(function(err, connection) {
             });
         });
 
-        let myJob = new cronJob('*/5 * * * * *', function(){
-            stock.getDailyQuote(pool, '601006');
-        });
-        myJob.start();
+        stock.getStockList(pool);
+        //let myJob = new cronJob('*/5 * * * * *', function(){
+        //    stock.getDailyQuote(pool, '601006');
+        //});
+        //myJob.start();
     }
 });
 

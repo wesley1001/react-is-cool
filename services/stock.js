@@ -19,40 +19,50 @@ module.exports = {
                 console.log(str);
 
                 csv.parse(str, {}, function(err, output){
-                    console.log(output);
+                    //console.log(output);
 
                     db.getConnection(function(err, connection) {
                         if (err) {
                             console.error("cannot get db connection.");
                             console.log(err);
                         } else {
-                            output.map(function(stockData) {
-                                connection.query('INSERT INTO t_stock_list SET ?',
-                                {
-                                    stock_id: stockData[0],
-                                    stock_name: stockData[1],
-                                    industry: stockData[2],
-                                    area: stockData[3],
-                                    pe: stockData[4],
-                                    outstanding: stockData[5],
-                                    totals: stockData[6],
-                                    totalAssets: stockData[7],
-                                    liquidAssets: stockData[8],
-                                    fixedAssets: stockData[9],
-                                    reserved: stockData[10],
-                                    reservedPerShare: stockData[11],
-                                    eps: stockData[12],
-                                    bvps: stockData[13],
-                                    pb: stockData[14],
-                                    timeToMarket: stockData[15]
-                                }, function(err, result) {
+                            // 1. 去除第一行标题 2. 将字符串转为数字型 3. 处理入市日期为0的数据
+                            let convertedData = output.slice(1).map(function(data) {
+                                return [
+                                    data[0],
+                                    data[1],
+                                    data[2],
+                                    data[3],
+                                    Number(data[4]),
+                                    Number(data[5]),
+                                    Number(data[6]),
+                                    Number(data[7]),
+                                    Number(data[8]),
+                                    Number(data[9]),
+                                    Number(data[10]),
+                                    Number(data[11]),
+                                    Number(data[12]),
+                                    Number(data[13]),
+                                    Number(data[14]),
+                                    data[15] == '0' ? '0000-00-00' : data[15],
+                                ];
+                            });
+                            //console.log(convertedData);
+
+                            let query = connection.query('INSERT INTO t_stock_list ' +
+                                '(stock_id, stock_name, industry, area, pe,' +
+                                'outstanding, totals, totalAssets, liquidAssets, fixedAssets,' +
+                                'reserved, reservedPerShare, eps, bvps, pb, timeToMarket) VALUES ?',
+                                [convertedData],
+                                function(err, result) {
                                     if (err) {
                                         console.log(err);
                                     } else {
-                                        console.log("created new stock, the id is " + stockData[0]);
+                                        console.log("created/updated stock list successful.");
                                     }
                                 });
-                            });
+
+                            console.log(query.sql);
 
                             connection.release();
                         }

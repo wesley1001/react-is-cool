@@ -133,7 +133,8 @@ pool.getConnection(function(err, connection) {
             });
         });
 
-        stock.getStockList(pool);
+        stock.getTransactionHistory(pool, '601006');
+        //stock.getStockList(pool);
         //let myJob = new cronJob('*/5 * * * * *', function(){
         //    stock.getDailyQuote(pool, '601006');
         //});

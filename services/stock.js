@@ -5,8 +5,10 @@ let csv = require('csv');
 let iconv = require('iconv-lite');
 
 let cons = require('./cons');
+let stockHelper = require('../helper/stock-helper')
 
 module.exports = {
+    // 获取股票基本信息
     getStockList: function(db) {
         let options = {
             url: cons.STOCK_LIST_URL,
@@ -62,7 +64,7 @@ module.exports = {
                                     }
                                 });
 
-                            console.log(query.sql);
+                            //console.log(query.sql);
 
                             connection.release();
                         }
@@ -73,6 +75,72 @@ module.exports = {
             }
         });
     },
+    // 获取历史交易信息
+    getTransactionHistory: function(db, stockId) {
+        if (stockId) {
+            let options = {
+                url: cons.STOCK_TRANSACTION_HISTORY_URL + stockHelper.codeToSymbol(stockId) + '&type=last',
+                json: true
+            };
+            request(options, function(error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    //console.log(body);
+
+                    // 1. 将字符串转为数字型, 2. 将日均量中的逗号去除
+                    let convertedData = body['record'].map(function(data) {
+                        return [
+                            stockId,
+                            data[0],
+                            Number(data[1]),
+                            Number(data[2]),
+                            Number(data[3]),
+                            Number(data[4]),
+                            Number(data[5]),
+                            Number(data[6]),
+                            Number(data[7]),
+                            Number(data[8]),
+                            Number(data[9]),
+                            Number(data[10]),
+                            Number(data[11].replace(/,/g, '')),
+                            Number(data[12].replace(/,/g, '')),
+                            Number(data[13].replace(/,/g, '')),
+                            Number(data[14]),
+                        ];
+                    });
+                    //console.log(convertedData);
+
+                    db.getConnection(function(err, connection) {
+                        if (err) {
+                            console.error("cannot get db connection.");
+                            console.log(err);
+                        } else {
+                            let query = connection.query('INSERT INTO t_stock_transaction_history ' +
+                                '(stock_id, date, open, high, close,' +
+                                'low, volume, price_change, p_change, ma5,' +
+                                'ma10, ma20, v_ma5, v_ma10, v_ma20, turnover) VALUES ?',
+                                [convertedData],
+                                function (err, result) {
+                                    if (err) {
+                                        console.log(err);
+                                    } else {
+                                        console.log("created stock transaction history successful.");
+                                    }
+                                });
+
+                            console.log(query.sql);
+
+                            connection.release();
+                        }
+                    });
+                } else {
+                    console.error(error);
+                }
+            });
+        } else {
+            console.log("please input a valid stock id.");
+        }
+    },
+    // 获取日交易详情
     getDailyQuote: function(db, stockId) {
         if (stockId) {
             let options = {

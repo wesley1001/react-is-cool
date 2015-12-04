@@ -133,7 +133,22 @@ pool.getConnection(function(err, connection) {
             });
         });
 
-        stock.getTransactionHistory(pool, '601006');
+        //var Canvas = require('canvas')
+        //    , Image = Canvas.Image
+        //    , canvas = new Canvas(200, 200)
+        //    , ctx = canvas.getContext('2d');
+        //
+        //ctx.beginPath();
+        //ctx.moveTo(0, 0);
+        //ctx.lineTo(200, 200);
+        //ctx.stroke();
+        //
+        //console.log('<img src="' + canvas.toDataURL() + '" />');
+
+        stock.calculateStockRSI(pool, '600636');
+        //stock.calculateStockRSI(pool, '603026');
+        //stock.getAllTransactionHistory(pool);
+        //stock.getTransactionHistory(pool, '601006');
         //stock.getStockList(pool);
         //let myJob = new cronJob('*/5 * * * * *', function(){
         //    stock.getDailyQuote(pool, '601006');

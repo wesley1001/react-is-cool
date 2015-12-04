@@ -3,6 +3,7 @@
 let request = require('request');
 let csv = require('csv');
 let iconv = require('iconv-lite');
+var colors = require('colors');
 
 let cons = require('./cons');
 let stockHelper = require('../helper/stock-helper')
@@ -86,52 +87,54 @@ module.exports = {
                 if (!error && response.statusCode == 200) {
                     //console.log(body);
 
-                    // 1. 将字符串转为数字型, 2. 将日均量中的逗号去除
-                    let convertedData = body['record'].map(function(data) {
-                        return [
-                            stockId,
-                            data[0],
-                            Number(data[1]),
-                            Number(data[2]),
-                            Number(data[3]),
-                            Number(data[4]),
-                            Number(data[5]),
-                            Number(data[6]),
-                            Number(data[7]),
-                            Number(data[8]),
-                            Number(data[9]),
-                            Number(data[10]),
-                            Number(data[11].replace(/,/g, '')),
-                            Number(data[12].replace(/,/g, '')),
-                            Number(data[13].replace(/,/g, '')),
-                            Number(data[14]),
-                        ];
-                    });
-                    //console.log(convertedData);
+                    if (body['record'].length > 0) {                        // 防止空数据
+                        // 1. 将字符串转为数字型, 2. 将日均量中的逗号去除
+                        let convertedData = body['record'].map(function(data) {
+                            return [
+                                stockId,
+                                data[0],
+                                Number(data[1]),
+                                Number(data[2]),
+                                Number(data[3]),
+                                Number(data[4]),
+                                Number(data[5]),
+                                Number(data[6]),
+                                Number(data[7]),
+                                Number(data[8]),
+                                Number(data[9]),
+                                Number(data[10]),
+                                Number(data[11].replace(/,/g, '')),
+                                Number(data[12].replace(/,/g, '')),
+                                Number(data[13].replace(/,/g, '')),
+                                Number(data[14]),
+                            ];
+                        });
+                        //console.log(convertedData);
 
-                    db.getConnection(function(err, connection) {
-                        if (err) {
-                            console.error("cannot get db connection.");
-                            console.log(err);
-                        } else {
-                            let query = connection.query('INSERT INTO t_stock_transaction_history ' +
-                                '(stock_id, date, open, high, close,' +
-                                'low, volume, price_change, p_change, ma5,' +
-                                'ma10, ma20, v_ma5, v_ma10, v_ma20, turnover) VALUES ?',
-                                [convertedData],
-                                function (err, result) {
-                                    if (err) {
-                                        console.log(err);
-                                    } else {
-                                        console.log("created stock transaction history successful.");
-                                    }
-                                });
+                        db.getConnection(function(err, connection) {
+                            if (err) {
+                                console.error("cannot get db connection.");
+                                console.log(err);
+                            } else {
+                                let query = connection.query('INSERT INTO t_stock_transaction_history ' +
+                                    '(stock_id, date, open, high, close,' +
+                                    'low, volume, price_change, p_change, ma5,' +
+                                    'ma10, ma20, v_ma5, v_ma10, v_ma20, turnover) VALUES ?',
+                                    [convertedData],
+                                    function (err, result) {
+                                        if (err) {
+                                            console.log(err);
+                                        } else {
+                                            console.log("created stock transaction history successful.");
+                                        }
+                                    });
 
-                            console.log(query.sql);
+                                console.log(query.sql);
 
-                            connection.release();
-                        }
-                    });
+                                connection.release();
+                            }
+                        });
+                    }
                 } else {
                     console.error(error);
                 }
@@ -139,6 +142,42 @@ module.exports = {
         } else {
             console.log("please input a valid stock id.");
         }
+    },
+    // 获取所有历史交易信息
+    getAllTransactionHistory: function(db) {
+        let self = this;
+
+        db.getConnection(function(err, connection) {
+            if (err) {
+                console.error("cannot get db connection.");
+                console.log(err);
+            } else {
+                let query = connection.query('SELECT stock_id FROM t_stock_list',
+                    null,
+                    function (err, result) {
+                        if (err) {
+                            console.log(err);
+                        } else {
+                            let i = 1234;
+                            self.refreshIntervalId = setInterval(function() {
+                                if (i < result.length) {
+                                    console.log(i);
+                                    self.getTransactionHistory(db, result[i].stock_id);
+                                    i++;
+                                } else {
+                                    clearInterval(self.refreshIntervalId);
+                                    console.log("get all transaction history done.");
+                                }
+                            }, 1000);   // 增加延时，防止被block
+                        }
+                    });
+
+                console.log(query.sql);
+
+                connection.release();
+            }
+        });
+        //this.getTransactionHistory(db, '601006');
     },
     // 获取日交易详情
     getDailyQuote: function(db, stockId) {
@@ -227,6 +266,140 @@ module.exports = {
             });
         } else {
             console.log("please input a valid stock id.");
+        }
+    },
+    // 计算股票rsi指数
+    calculateStockRSI: function(db, stockId) {
+        let self = this;
+
+        if (stockId) {
+            db.getConnection(function(err, connection) {
+                if (err) {
+                    console.error("cannot get db connection.".red);
+                    console.log(err);
+                } else {
+                    let query = connection.query('SELECT `date`, close FROM t_stock_transaction_history ' +
+                        'WHERE stock_id = ? AND `date` >= ' +
+                        '(SELECT IFNULL(MAX(`date`), "0000-00-00") AS last_date FROM t_stock_rsi WHERE stock_id = ?)',
+                        [stockId, stockId],
+                        function (err, result) {
+                            if (err) {
+                                console.log('%s'.red, err);
+                            } else {
+                                let transactions = result.map(x => x.close);
+                                console.log(transactions);
+
+                                for (let i = 0; i < transactions.length; i++) {
+                                    let rsi1 = 0
+                                        , rsi2 = 0
+                                        , rsi3 = 0;
+
+                                    connection.query('SELECT rsi1_up_avg, rsi1_down_avg, rsi2_up_avg, rsi2_down_avg, ' +
+                                        'rsi3_up_avg, rsi3_down_avg FROM t_stock_rsi ' +
+                                        'WHERE stock_id = ? AND  `date` < ? ORDER BY `date` DESC limit 1',
+                                        [stockId, transactions[i].date],
+                                        function (err, result) {
+                                            if (err) {
+                                                console.log('%s'.red, err);
+                                            } else {
+                                                if (result.length == 0) {
+
+                                                } else {
+                                                    let data = result[0];
+
+                                                    rsi1 = stockHelper.calculateRSI(
+                                                            transactions.slice(i - 1, i + 1), cons.RSI1,
+                                                            data['rsi1_up_avg'], data['rsi1_down_avg']);
+
+                                                    rsi2 = stockHelper.calculateRSI(
+                                                            transactions.slice(i - 1, i + 1), cons.RSI2,
+                                                            data['rsi2_up_avg'], data['rsi2_down_avg']);
+
+                                                    rsi3 = stockHelper.calculateRSI(
+                                                            transactions.slice(i - 1, i + 1), cons.RSI3,
+                                                            data['rsi3_up_avg'], data['rsi3_down_avg']);
+                                                }
+                                            }
+                                        }
+                                    )
+
+                                    connection.query('INSERT INTO t_stock_rsi SET ?',
+                                        {
+                                            stock_id: stockId,
+                                            date: transactions[i].date,
+                                            rsi1_up_avg: rsi1[1],
+                                            rsi1_down_avg: rsi1[2],
+                                            rsi1: rsi1[0],
+                                            rsi2_up_avg: rsi2[1],
+                                            rsi2_down_avg: rsi2[2],
+                                            rsi2: rsi2[0],
+                                            rsi3_up_avg: rsi3[1],
+                                            rsi3_down_avg: rsi3[2],
+                                            rsi3: rsi3[0]
+                                        }, function(err, result) {
+                                            if (err) {
+                                                console.log(err);
+                                            } else {
+                                                console.log("created new stock rsi, the id is %s".green,
+                                                    result.insertId);
+                                            }
+                                        });
+
+                                    //let pre_up1 = 0
+                                    //    , pre_down1 = 0
+                                    //    , pre_up2 = 0
+                                    //    , pre_down2 = 0
+                                    //    , pre_up3 = 0
+                                    //    , pre_down3 = 0;
+
+                                    //if (i == cons.RSI1) {
+                                    //    let rsi1 = stockHelper.calculateRSI(
+                                    //            transactions.slice(0, cons.RSI1 + 1), cons.RSI1)
+                                    //        , rsi2 = stockHelper.calculateRSI(
+                                    //    transactions.slice(0, cons.RSI2 + 1).reverse(), cons.RSI2)
+                                    //        , rsi3 = stockHelper.calculateRSI(
+                                    //    transactions.slice(0, cons.RSI3 + 1).reverse(), cons.RSI3);
+                                    //
+                                    //    pre_up1 = rsi1[1];
+                                    //    pre_down1 = rsi1[2];
+                                    //
+                                    //    pre_up2 = rsi2[1];
+                                    //    pre_down2 = rsi2[2];
+                                    //
+                                    //    pre_up3 = rsi3[1];
+                                    //    pre_down3 = rsi3[2];
+                                    //
+                                    //    console.log('RSI1: %s RSI2: %s RSI3: %s'.green, rsi1, rsi2, rsi3);
+                                    //} else if (i > cons.RSI1) {
+                                    //    let rsi1 = stockHelper.calculateRSI(
+                                    //            transactions.slice(i - 1, i + 1), cons.RSI1, pre_up1, pre_down1)
+                                    //        , rsi2 = stockHelper.calculateRSI(
+                                    //            transactions.slice(i - 1, i + 1), cons.RSI2, pre_up2, pre_down2)
+                                    //        , rsi3 = stockHelper.calculateRSI(
+                                    //            transactions.slice(i - 1, i + 1), cons.RSI3, pre_up3, pre_down3);
+                                    //
+                                    //    pre_up1 = rsi1[1];
+                                    //    pre_down1 = rsi1[2];
+                                    //
+                                    //    pre_up2 = rsi2[1];
+                                    //    pre_down2 = rsi2[2];
+                                    //
+                                    //    pre_up3 = rsi3[1];
+                                    //    pre_down3 = rsi3[2];
+                                    //
+                                    //    console.log('RSI1: %s RSI2: %s RSI3: %s'.green, rsi1, rsi2, rsi3);
+                                    //}
+                                }
+                            }
+                        });
+
+                    console.log(query.sql);
+
+                    connection.release();
+                }
+            });
+        } else {
+            console.log("please input a valid stock id.".red);
         }
     }
 };

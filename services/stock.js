@@ -373,7 +373,7 @@ module.exports = {
                     console.log(err);
                 } else {
                     // 获取此股票的所有交易日数据
-                    let query = connection.query('SELECT `date`, close FROM t_stock_transaction_history ' +
+                    connection.query('SELECT `date`, close FROM t_stock_transaction_history ' +
                         'WHERE stock_id = ? order by `date`',
                         [stockId],
                         function (err, result) {
@@ -399,13 +399,11 @@ module.exports = {
                                     }
                                 }).then(function () {
                                     console.log('Calculate RSI done.'.green);
+
+                                    connection.release();
                                 });
                             }
                         });
-
-                    //console.log(query.sql);
-
-                    connection.release();
                 }
             });
         } else {

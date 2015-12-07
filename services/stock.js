@@ -3,12 +3,27 @@
 let request = require('request');
 let csv = require('csv');
 let iconv = require('iconv-lite');
-var colors = require('colors');
+let colors = require('colors');
+let co = require('co')
 
 let cons = require('./cons');
 let stockHelper = require('../helper/stock-helper')
 
 module.exports = {
+    // 保存RSI数据
+    saveRSIData: function(connection, data) {
+        let q = connection.query('INSERT INTO t_stock_rsi SET ?',
+            data, function(err, result) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    console.log("created new stock rsi, the id is %s".green,
+                        result.insertId);
+                }
+            });
+
+        console.log(q.sql);
+    },
     // 获取股票基本信息
     getStockList: function(db) {
         let options = {
@@ -268,8 +283,87 @@ module.exports = {
             console.log("please input a valid stock id.");
         }
     },
-    // 计算股票rsi指数
-    calculateStockRSI: function(db, stockId) {
+    // 计算单只股票某日的RSI指数
+    calculateStockRSI: function(connection, stockId, stockData, index, preUpDownData) {
+        let self = this;
+
+        let transactions = stockData.map(x => x.close);
+
+        return new Promise(function (resolve, reject) {
+            let rsi1 = [100, 0, 0]
+                , rsi2 = [100, 0, 0]
+                , rsi3 = [100, 0, 0];
+
+            // 查看当前日期是否已经计算过rsi，如果是，就取出上涨平均值和下跌平均值，否则计算rsi
+            connection.query('SELECT rsi1_up_avg, rsi1_down_avg, rsi2_up_avg, rsi2_down_avg, ' +
+                'rsi3_up_avg, rsi3_down_avg FROM t_stock_rsi ' +
+                'WHERE stock_id = ? AND  `date` = ?',
+                [stockId, stockData[index].date],
+                function (err, result) {
+                    if (err) {
+                        console.error('%s'.red, err);
+
+                        reject(err);
+                    } else {
+                        if (result.length == 0) {
+                            // 第一条不需要计算rsi
+                            if (index > 0) {
+                                rsi1 = stockHelper.calculateRSI(
+                                    transactions.slice(index - 1, index + 1), cons.RSI1,
+                                    preUpDownData.pre_up1, preUpDownData.pre_down1);
+
+                                rsi2 = stockHelper.calculateRSI(
+                                    transactions.slice(index - 1, index + 1), cons.RSI2,
+                                    preUpDownData.pre_up2, preUpDownData.pre_down2);
+
+                                rsi3 = stockHelper.calculateRSI(
+                                    transactions.slice(index - 1, index + 1), cons.RSI3,
+                                    preUpDownData.pre_up3, preUpDownData.pre_down3);
+                            }
+
+                            // 保存RSI数据
+                            self.saveRSIData(connection, {
+                                stock_id: stockId,
+                                date: stockData[index].date,
+                                rsi1_up_avg: rsi1[1],
+                                rsi1_down_avg: rsi1[2],
+                                rsi1: rsi1[0],
+                                rsi2_up_avg: rsi2[1],
+                                rsi2_down_avg: rsi2[2],
+                                rsi2: rsi2[0],
+                                rsi3_up_avg: rsi3[1],
+                                rsi3_down_avg: rsi3[2],
+                                rsi3: rsi3[0]
+                            });
+
+                            // 取出上涨平均值和下跌平均值
+                            preUpDownData.pre_up1 = rsi1[1];
+                            preUpDownData.pre_down1 = rsi1[2];
+                            preUpDownData.pre_up2 = rsi2[1];
+                            preUpDownData.pre_down2 = rsi2[2];
+                            preUpDownData.pre_up3 = rsi3[1];
+                            preUpDownData.pre_down3 = rsi3[2];
+                        } else {
+                            // 取出上涨平均值和下跌平均值
+                            preUpDownData.pre_up1 = result[0]['rsi1_up_avg'];
+                            preUpDownData.pre_down1 = result[0]['rsi1_down_avg'];
+                            preUpDownData.pre_up2 = result[0]['rsi2_up_avg'];
+                            preUpDownData.pre_down2 = result[0]['rsi2_down_avg'];
+                            preUpDownData.pre_up3 = result[0]['rsi3_up_avg'];
+                            preUpDownData.pre_down3 = result[0]['rsi3_down_avg'];
+                        }
+
+                        resolve(preUpDownData)
+                    }
+                }
+            )
+            //console.log(q.sql);
+        })
+    },
+    // 计算单只股票的所有RSI指数
+    calculateStockRSIs: function(db, stockId) {
+        console.log('Calculating RSI...'.yellow);
+
         let self = this;
 
         if (stockId) {
@@ -278,122 +372,38 @@ module.exports = {
                     console.error("cannot get db connection.".red);
                     console.log(err);
                 } else {
+                    // 获取此股票的所有交易日数据
                     let query = connection.query('SELECT `date`, close FROM t_stock_transaction_history ' +
-                        'WHERE stock_id = ? AND `date` >= ' +
-                        '(SELECT IFNULL(MAX(`date`), "0000-00-00") AS last_date FROM t_stock_rsi WHERE stock_id = ?)',
-                        [stockId, stockId],
+                        'WHERE stock_id = ? order by `date`',
+                        [stockId],
                         function (err, result) {
                             if (err) {
-                                console.log('%s'.red, err);
+                                console.error('%s'.red, err);
                             } else {
-                                let transactions = result.map(x => x.close);
-                                console.log(transactions);
+                                self.result = result;
 
-                                for (let i = 0; i < transactions.length; i++) {
-                                    let rsi1 = 0
-                                        , rsi2 = 0
-                                        , rsi3 = 0;
+                                co(function* () {
+                                    let preUpDownData = {
+                                        pre_up1: 0,
+                                        pre_down1: 0,
+                                        pre_up2: 0,
+                                        pre_down2: 0,
+                                        pre_up3: 0,
+                                        pre_down3: 0
+                                    };
 
-                                    connection.query('SELECT rsi1_up_avg, rsi1_down_avg, rsi2_up_avg, rsi2_down_avg, ' +
-                                        'rsi3_up_avg, rsi3_down_avg FROM t_stock_rsi ' +
-                                        'WHERE stock_id = ? AND  `date` < ? ORDER BY `date` DESC limit 1',
-                                        [stockId, transactions[i].date],
-                                        function (err, result) {
-                                            if (err) {
-                                                console.log('%s'.red, err);
-                                            } else {
-                                                if (result.length == 0) {
-
-                                                } else {
-                                                    let data = result[0];
-
-                                                    rsi1 = stockHelper.calculateRSI(
-                                                            transactions.slice(i - 1, i + 1), cons.RSI1,
-                                                            data['rsi1_up_avg'], data['rsi1_down_avg']);
-
-                                                    rsi2 = stockHelper.calculateRSI(
-                                                            transactions.slice(i - 1, i + 1), cons.RSI2,
-                                                            data['rsi2_up_avg'], data['rsi2_down_avg']);
-
-                                                    rsi3 = stockHelper.calculateRSI(
-                                                            transactions.slice(i - 1, i + 1), cons.RSI3,
-                                                            data['rsi3_up_avg'], data['rsi3_down_avg']);
-                                                }
-                                            }
-                                        }
-                                    )
-
-                                    connection.query('INSERT INTO t_stock_rsi SET ?',
-                                        {
-                                            stock_id: stockId,
-                                            date: transactions[i].date,
-                                            rsi1_up_avg: rsi1[1],
-                                            rsi1_down_avg: rsi1[2],
-                                            rsi1: rsi1[0],
-                                            rsi2_up_avg: rsi2[1],
-                                            rsi2_down_avg: rsi2[2],
-                                            rsi2: rsi2[0],
-                                            rsi3_up_avg: rsi3[1],
-                                            rsi3_down_avg: rsi3[2],
-                                            rsi3: rsi3[0]
-                                        }, function(err, result) {
-                                            if (err) {
-                                                console.log(err);
-                                            } else {
-                                                console.log("created new stock rsi, the id is %s".green,
-                                                    result.insertId);
-                                            }
-                                        });
-
-                                    //let pre_up1 = 0
-                                    //    , pre_down1 = 0
-                                    //    , pre_up2 = 0
-                                    //    , pre_down2 = 0
-                                    //    , pre_up3 = 0
-                                    //    , pre_down3 = 0;
-
-                                    //if (i == cons.RSI1) {
-                                    //    let rsi1 = stockHelper.calculateRSI(
-                                    //            transactions.slice(0, cons.RSI1 + 1), cons.RSI1)
-                                    //        , rsi2 = stockHelper.calculateRSI(
-                                    //    transactions.slice(0, cons.RSI2 + 1).reverse(), cons.RSI2)
-                                    //        , rsi3 = stockHelper.calculateRSI(
-                                    //    transactions.slice(0, cons.RSI3 + 1).reverse(), cons.RSI3);
-                                    //
-                                    //    pre_up1 = rsi1[1];
-                                    //    pre_down1 = rsi1[2];
-                                    //
-                                    //    pre_up2 = rsi2[1];
-                                    //    pre_down2 = rsi2[2];
-                                    //
-                                    //    pre_up3 = rsi3[1];
-                                    //    pre_down3 = rsi3[2];
-                                    //
-                                    //    console.log('RSI1: %s RSI2: %s RSI3: %s'.green, rsi1, rsi2, rsi3);
-                                    //} else if (i > cons.RSI1) {
-                                    //    let rsi1 = stockHelper.calculateRSI(
-                                    //            transactions.slice(i - 1, i + 1), cons.RSI1, pre_up1, pre_down1)
-                                    //        , rsi2 = stockHelper.calculateRSI(
-                                    //            transactions.slice(i - 1, i + 1), cons.RSI2, pre_up2, pre_down2)
-                                    //        , rsi3 = stockHelper.calculateRSI(
-                                    //            transactions.slice(i - 1, i + 1), cons.RSI3, pre_up3, pre_down3);
-                                    //
-                                    //    pre_up1 = rsi1[1];
-                                    //    pre_down1 = rsi1[2];
-                                    //
-                                    //    pre_up2 = rsi2[1];
-                                    //    pre_down2 = rsi2[2];
-                                    //
-                                    //    pre_up3 = rsi3[1];
-                                    //    pre_down3 = rsi3[2];
-                                    //
-                                    //    console.log('RSI1: %s RSI2: %s RSI3: %s'.green, rsi1, rsi2, rsi3);
-                                    //}
-                                }
+                                    for (let i = 0; i < result.length; i++) {
+                                        // 计算RSI指数
+                                        preUpDownData = yield self.calculateStockRSI(
+                                            connection, stockId, result, i, preUpDownData);
+                                    }
+                                }).then(function () {
+                                    console.log('Calculate RSI done.'.green);
+                                });
                             }
                         });
 
-                    console.log(query.sql);
+                    //console.log(query.sql);
 
                     connection.release();
                 }

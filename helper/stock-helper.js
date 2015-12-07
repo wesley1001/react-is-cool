@@ -57,8 +57,8 @@ module.exports = {
 
         console.log(base);
 
-        // 如果没有上一天的上升平均值和下升平均值，就需要采用简单平均法计算平均值, 否则采用指数平均法计算。
-        if (pre_up) {
+        //// 如果没有上一天的上升平均值和下升平均值，就需要采用简单平均法计算平均值, 否则采用指数平均法计算。
+        //if (pre_up) {
             let result = stockTransaction[1] - base;
 
             console.log('%s'.yellow, result);
@@ -70,29 +70,29 @@ module.exports = {
                 up_avg = pre_up * (rsi - 1) / rsi;
                 down_avg = (pre_down * (rsi - 1) + Math.abs(result)) / rsi;
             }
-        } else {
-            let up = 0
-                , down = 0;
-
-            stockTransaction.slice(1).forEach(x => {
-                let result = x - base;
-
-                console.log(result);
-
-                if (result > 0) {
-                    up += result;
-                } else {
-                    down += Math.abs(result);
-                }
-
-                base = x;
-            });
-
-            console.log('up: %s, down: %s', up, down);
-
-            up_avg = up / rsi;
-            down_avg = down / rsi;
-        }
+        //} else {
+        //    let up = 0
+        //        , down = 0;
+        //
+        //    stockTransaction.slice(1).forEach(x => {
+        //        let result = x - base;
+        //
+        //        console.log(result);
+        //
+        //        if (result > 0) {
+        //            up += result;
+        //        } else {
+        //            down += Math.abs(result);
+        //        }
+        //
+        //        base = x;
+        //    });
+        //
+        //    console.log('up: %s, down: %s', up, down);
+        //
+        //    up_avg = up / rsi;
+        //    down_avg = down / rsi;
+        //}
 
         return [up_avg / (up_avg + down_avg) * 100, up_avg, down_avg];
     }

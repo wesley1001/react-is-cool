@@ -145,7 +145,7 @@ pool.getConnection(function(err, connection) {
         //
         //console.log('<img src="' + canvas.toDataURL() + '" />');
 
-        stock.calculateStockRSI(pool, '600636');
+        stock.calculateStockRSIs(pool, '600636');
         //stock.calculateStockRSI(pool, '603026');
         //stock.getAllTransactionHistory(pool);
         //stock.getTransactionHistory(pool, '601006');

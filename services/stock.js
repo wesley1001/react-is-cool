@@ -6,6 +6,7 @@ let csv = require('csv');
 let iconv = require('iconv-lite');
 let colors = require('colors');
 let co = require('co')
+let underscore = require('underscore');
 
 // 引入自有库
 let cons = require('./cons');
@@ -569,7 +570,7 @@ function getTopStocksPerIndustry (db) {
 function getStockRSI (connection, stockId) {
     return new Promise(function (resolve, reject) {
         // 获取此股票的所有交易日数据
-        let query = connection.query('SELECT rsi1, rsi2, rsi3, `date` FROM t_stock_rsi ' +
+        let query = connection.query('SELECT stock_id, rsi1, rsi2, rsi3, `date` FROM t_stock_rsi ' +
             'WHERE stock_id = ? ORDER BY `date` DESC LIMIT 1',
             [stockId],
             function (err, result) {
@@ -599,9 +600,14 @@ function getStocksRSI (db, stocks) {
                 reject(err);
             } else {
                 co(function* () {
-                    return stocks.map(stock => {
-                        getStockRSI(connection, stock['stock_id']);
-                    });
+                    let result = [];
+
+                    for (let i = 0; i < stocks.length; i++) {
+                        let data = yield getStockRSI(connection, stocks[i]['stock_id']);
+                        result.push(data.slice(0, 1));
+                    }
+
+                    return result;
                 }).then(function (val) {
                     connection.release();
 
@@ -623,7 +629,10 @@ function filterStockMagic (db) {
         // 获取对应股票的RSI指数
         let stockRSIs = yield getStocksRSI(db, topStocks);
 
-        console.log(stockRSIs);
+        // 将数据整形，然后过滤数据
+        console.log([].concat.apply([],stockRSIs).filter(stock => {
+            return stock['rsi1'] < 40;
+        }));
     });
 }
 

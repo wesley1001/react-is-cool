@@ -145,7 +145,10 @@ pool.getConnection(function(err, connection) {
         //
         //console.log('<img src="' + canvas.toDataURL() + '" />');
 
-        stock.calculateStockRSIs(pool, '600636');
+        //stock.filterStockMagic(pool);
+        stock.updateAllStocksRSI(pool);
+        //stock.getTopStocksPerIndustry(pool);
+        //stock.calculateStockRSIs(pool, '600636');
         //stock.calculateStockRSI(pool, '603026');
         //stock.getAllTransactionHistory(pool);
         //stock.getTransactionHistory(pool, '601006');

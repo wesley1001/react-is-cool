@@ -44,8 +44,10 @@ module.exports = {
      *　　第十一天RSI=[1.72÷(1.72+1.52)]×100=53.09
      *　　据此可计算以后几天的RSI。
      *
-     * @param stockTransaction
-     * @param rsi
+     * @param stockTransaction 股票行情数据
+     * @param rsi RSI天数
+     * @param pre_up 上一日的上涨平均指数
+     * @param pre_down 上一日的下跌平均指数
      */
     calculateRSI: function(stockTransaction, rsi, pre_up, pre_down) {
         let up_avg = 0

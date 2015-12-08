@@ -1,15 +1,21 @@
 'use strict';
 
+// 引入第三方库
 let request = require('request');
 let csv = require('csv');
 let iconv = require('iconv-lite');
 let colors = require('colors');
 let co = require('co')
 
+// 引入自有库
 let cons = require('./cons');
 let stockHelper = require('../helper/stock-helper')
 
-// 保存RSI数据
+/**
+ * 保存RSI数据
+ * @param connection 数据库连接
+ * @param data RSI数据
+ */
 function saveRSIData(connection, data) {
     let q = connection.query('INSERT INTO t_stock_rsi SET ?',
         data, function (err, result) {
@@ -22,10 +28,12 @@ function saveRSIData(connection, data) {
         });
 
     console.log(q.sql);
-};
+}
 
-// 获取股票基本信息
-function getStockList(db) {
+/** 抓取所有股票的基本信息并保存到数据库中
+ * @param db
+ */
+function fetchStockList(db) {
     let options = {
         url: cons.STOCK_LIST_URL,
         encoding: null
@@ -90,7 +98,35 @@ function getStockList(db) {
             console.error(error);
         }
     });
-};
+}
+
+/**
+ * 读取所有股票的基本信息
+ * @param db 数据库连接池
+ */
+function getAllStocksBaseInfo (db) {
+    return new Promise(function (resolve, reject) {
+        db.getConnection(function (err, connection) {
+            if (err) {
+                console.error("cannot get db connection. \n%s".red, err);
+
+                reject(err);
+            } else {
+                connection.query('SELECT stock_id, stock_name FROM t_stock_list',
+                    [],
+                    function (err, result) {
+                        if (err) {
+                            console.error('%s'.red, err);
+
+                            reject(err);
+                        } else {
+                            resolve(result);
+                        }
+                    });
+            }
+        });
+    });
+}
 
 // 获取历史交易信息
 function getTransactionHistory(db, stockId) {
@@ -158,7 +194,7 @@ function getTransactionHistory(db, stockId) {
     } else {
         console.log("please input a valid stock id.");
     }
-};
+}
 
 // 获取所有历史交易信息
 function getAllTransactionHistory(db) {
@@ -195,7 +231,7 @@ function getAllTransactionHistory(db) {
         }
     });
     //this.getTransactionHistory(db, '601006');
-};
+}
 
 // 获取日交易详情
 function getDailyQuote(db, stockId) {
@@ -285,7 +321,7 @@ function getDailyQuote(db, stockId) {
     } else {
         console.log("please input a valid stock id.");
     }
-};
+}
 
 /**
  * 计算单只股票某日的RSI指数
@@ -316,7 +352,7 @@ function calculateStockRSI(connection, stockId, stockData, index, preUpDownData)
                     reject(err);
                 } else {
                     if (result.length == 0) {
-                        // 第一条不需要计算rsi
+                        // 第一条不需要计算rsi，直接就是100
                         if (index > 0) {
                             rsi1 = stockHelper.calculateRSI(
                                 transactions.slice(index - 1, index + 1), cons.RSI1,
@@ -369,7 +405,7 @@ function calculateStockRSI(connection, stockId, stockData, index, preUpDownData)
         )
         //console.log(q.sql);
     })
-};
+}
 
 /**
  * 计算单只股票的所有RSI指数
@@ -382,8 +418,7 @@ function calculateStockRSIs(db, stockId) {
     if (stockId) {
         db.getConnection(function (err, connection) {
             if (err) {
-                console.error("cannot get db connection.".red);
-                console.log(err);
+                console.error("cannot get db connection. \n%s".red, err);
             } else {
                 // 获取此股票的所有交易日数据
                 connection.query('SELECT `date`, close FROM t_stock_transaction_history ' +
@@ -420,8 +455,194 @@ function calculateStockRSIs(db, stockId) {
     } else {
         console.log("please input a valid stock id.".red);
     }
-};
+}
+
+function calculateStocksRSIs(db) {
+
+}
+
+/**
+ * 获取指定行业的近期涨停最多的股票
+ * @param connection 数据库连接
+ * @param industry 行业
+ * @param from 开始日期
+ * @param to 结束日期
+ * @param up_limit 上涨幅度
+ * @param c 股票数量
+ */
+function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
+    console.log('get top stocks of %s...'.yellow, industry);
+
+    return new Promise(function (resolve, reject) {
+        // 获取此股票的所有交易日数据
+        connection.query('SELECT t_stock.stock_id, t_stock.stock_name, COUNT(1) as UP_COUNT ' +
+            'FROM t_stock_list t_stock, t_stock_transaction_history t_trans ' +
+            'WHERE t_stock.stock_id = t_trans.stock_id ' +
+            'AND t_stock.industry = ? ' +
+            'AND t_trans.date between ? and ? ' +
+            'AND t_trans.p_change = ? ' +
+            'GROUP BY t_stock.stock_id, t_stock.stock_name ' +
+            'ORDER BY COUNT(1) DESC ' +
+            'LIMIT ?',
+            [industry, from, to, up_limit, c],
+            function (err, result) {
+                if (err) {
+                    reject(err);
+                } else {
+                    //console.log(result);
+
+                    //topStocks.push({industry: industry, data: result});
+
+                    resolve(result.map(x => {
+                        x.industry = industry;
+                        return x;
+                    }));
+                }
+            });
+    });
+}
+
+/**
+ * 获取每个行业的近期涨停最多的股票
+ * @param db 数据库连接池
+ */
+function getTopStocksPerIndustry (db) {
+    return new Promise(function (resolve, reject) {
+        db.getConnection(function (err, connection) {
+            if (err) {
+                console.error("cannot get db connection. \n%s".red, err);
+
+                reject(err);
+            } else {
+                let topStocks = [];
+
+                // 提取最近一个月的起始日期
+                let from = new Date();
+                from.setMonth(from.getMonth() - 1);
+
+                let to = new Date();
+                to.setDate(to.getDate() - 1);
+
+                // 获取此股票的所有交易日数据
+                connection.query('SELECT industry FROM t_stock_list GROUP BY industry',
+                    [],
+                    function (err, result) {
+                        if (err) {
+                            console.error('%s'.red, err);
+                        } else {
+                            console.log(result);
+                            co(function* () {
+                                let stocks = yield result.map(x => getTopStocksOfIndustry(
+                                    connection, x['industry'],
+                                    from,
+                                    to,
+                                    cons.TOP_STOCK_LIMIT,
+                                    cons.TOP_STOCK_COUNT));
+
+                                return stocks;
+                            }).then(function (val) {
+                                console.log('get top stocks per industry done.'.green);
+
+                                connection.release();
+
+                                let combineStocks = [];
+
+                                val.forEach(x => {
+                                    x.map(y => combineStocks.push(y));
+                                });
+
+                                resolve(combineStocks);
+                            });
+                        }
+                    });
+            }
+        });
+    });
+}
+
+/**
+ * 获取指定股票的RSI指数
+ * @param connection
+ * @param stockId
+ * @returns {Promise}
+ */
+function getStockRSI (connection, stockId) {
+    return new Promise(function (resolve, reject) {
+        // 获取此股票的所有交易日数据
+        let query = connection.query('SELECT rsi1, rsi2, rsi3, `date` FROM t_stock_rsi ' +
+            'WHERE stock_id = ? ORDER BY `date` DESC LIMIT 1',
+            [stockId],
+            function (err, result) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(result);
+                }
+            });
+
+        console.log(query.sql);
+    });
+}
+
+/**
+ * 获取指定股票集的RSI指数
+ * @param db
+ * @param stocks
+ * @returns {Promise}
+ */
+function getStocksRSI (db, stocks) {
+    return new Promise(function (resolve, reject) {
+        db.getConnection(function (err, connection) {
+            if (err) {
+                console.error("cannot get db connection. \n%s".red, err);
+
+                reject(err);
+            } else {
+                co(function* () {
+                    return stocks.map(stock => {
+                        getStockRSI(connection, stock['stock_id']);
+                    });
+                }).then(function (val) {
+                    connection.release();
+
+                    resolve(val);
+                });
+            }
+        });
+    });
+}
+
+/**
+ * 过滤股票
+ * @param db
+ */
+function filterStockMagic (db) {
+    co(function* () {
+        // 获取每个行业的近期涨停最多的股票
+        let topStocks = yield getTopStocksPerIndustry(db);
+        // 获取对应股票的RSI指数
+        let stockRSIs = yield getStocksRSI(db, topStocks);
+
+        console.log(stockRSIs);
+    });
+}
+
+/**
+ * 更新所有股票的RSI指数
+ * @param db
+ */
+function updateAllStocksRSI (db) {
+    co(function* () {
+        let stocks = yield getAllStocksBaseInfo(db);
+        stocks.forEach(stock => {
+            calculateStockRSIs(db, stock['stock_id']);
+        });
+    });
+}
 
 module.exports = {
-    calculateStockRSIs: calculateStockRSIs
+    calculateStockRSIs: calculateStockRSIs,
+    updateAllStocksRSI: updateAllStocksRSI,
+    getTopStocksPerIndustry: getTopStocksPerIndustry,
+    filterStockMagic: filterStockMagic
 };

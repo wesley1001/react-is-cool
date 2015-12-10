@@ -10,8 +10,8 @@ let mysql = require('mysql');
 let exphbs  = require('express-handlebars');
 let cronJob = require('cron').CronJob;
 
-let Home = require('./controllers/Home');
 let stock = require('./services/stock');
+let home = require('./controllers/home');
 
 let app = express();
 
@@ -97,10 +97,16 @@ pool.getConnection(function(err, connection) {
 
         connection.release();
 
-        app.use('/*', function (req, res, next) {
+        let addDBPool = function (req, res, next) {
             req.db = pool;
-            Home.run(req, res, next);
-        });
+            next();
+        }
+
+        app.use('/*', addDBPool, home);
+        //app.use('/*', function (req, res, next) {
+        //    req.db = pool;
+        //    //Home.run(req, res, next);
+        //});
 
         // catch 404 and forward to error handler
         app.use(function(req, res, next) {
@@ -145,7 +151,7 @@ pool.getConnection(function(err, connection) {
         //
         //console.log('<img src="' + canvas.toDataURL() + '" />');
 
-        stock.filterStockMagic(pool);
+        //stock.filterStockMagic(pool);
         //stock.updateAllStocksRSI(pool);
         //stock.getTopStocksPerIndustry(pool);
         //stock.calculateStockRSIs(pool, '600636');

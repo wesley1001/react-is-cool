@@ -646,6 +646,8 @@ function updateAllStocksRSI (db) {
         stocks.forEach(stock => {
             calculateStockRSIs(db, stock['stock_id']);
         });
+    }).then(function () {
+        console.log('update all stocks RSI done.'.green)
     });
 }
 

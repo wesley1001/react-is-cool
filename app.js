@@ -12,6 +12,7 @@ let cronJob = require('cron').CronJob;
 
 let stock = require('./services/stock');
 let home = require('./controllers/home');
+let api = require('./controllers/api');
 
 let app = express();
 
@@ -27,6 +28,9 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/react', express.static(__dirname + '/node_modules/react/dist/'));
+app.use('/react-dom', express.static(__dirname + '/node_modules/react-dom/dist/'));
+app.use('/jquery', express.static(__dirname + '/node_modules/jquery/dist/'));
 
 // attach mongodb
 //mongoose.connect('mongodb://127.0.0.1:27017/reactiscool')
@@ -102,7 +106,10 @@ pool.getConnection(function(err, connection) {
             next();
         }
 
+        app.use('/api', addDBPool, api);
+
         app.use('/*', addDBPool, home);
+
         //app.use('/*', function (req, res, next) {
         //    req.db = pool;
         //    //Home.run(req, res, next);

@@ -26,6 +26,7 @@
     "express": "~4.13.1",
     "express-handlebars": "^2.0.1",
     "iconv-lite": "^0.4.13",
+    "jquery": "^2.1.4",
     "morgan": "~1.6.1",
     "mysql": "^2.9.0",
     "progress": "^1.1.8",

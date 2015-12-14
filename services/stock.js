@@ -623,16 +623,23 @@ function getStocksRSI (db, stocks) {
  * @param db
  */
 function filterStockMagic (db) {
-    co(function* () {
-        // 获取每个行业的近期涨停最多的股票
-        let topStocks = yield getTopStocksPerIndustry(db);
-        // 获取对应股票的RSI指数
-        let stockRSIs = yield getStocksRSI(db, topStocks);
+    return new Promise(function (resolve, reject) {
+        co(function* () {
+            // 获取每个行业的近期涨停最多的股票
+            let topStocks = yield getTopStocksPerIndustry(db);
+            // 获取对应股票的RSI指数
+            let stockRSIs = yield getStocksRSI(db, topStocks);
 
-        // 将数据整形，然后过滤数据
-        console.log([].concat.apply([],stockRSIs).filter(stock => {
-            return stock['rsi1'] < 40;
-        }));
+            // 将数据整形，然后过滤数据
+            let result = [].concat.apply([],stockRSIs).filter(stock => {
+                return stock['rsi1'] < 40;
+            });
+            console.log(result);
+
+            return result;
+        }).then(function (val) {
+            resolve(val);
+        });
     });
 }
 

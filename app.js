@@ -31,6 +31,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/react', express.static(__dirname + '/node_modules/react/dist/'));
 app.use('/react-dom', express.static(__dirname + '/node_modules/react-dom/dist/'));
 app.use('/jquery', express.static(__dirname + '/node_modules/jquery/dist/'));
+app.use('/bootstrap', express.static(__dirname + '/node_modules/bootstrap/dist/'));
+app.use('/fixed-data-table', express.static(__dirname + '/node_modules/fixed-data-table//dist/'));
 
 // attach mongodb
 //mongoose.connect('mongodb://127.0.0.1:27017/reactiscool')

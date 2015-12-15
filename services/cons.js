@@ -1,6 +1,8 @@
 'use strict';
 
 module.exports = {
+    SECONDS_OF_A_DAY: 60 * 60 * 24,
+
     RSI1: 6,
     RSI2: 12,
     RSI3: 24,

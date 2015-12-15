@@ -5,12 +5,8 @@ let router = express.Router();
 let colors = require('colors');
 let co = require('co');
 
+let cons = require('../services/cons');
 let stock = require('../services/stock');
-
-//let data = [
-//    {id: 1, author: "Kevin Gu", text: "This is one comment"},
-//    {id: 2, author: "Jordan Walke", text: "This is *another* comment"}
-//];
 
 // middleware that is specific to this router
 router.use(function timeLog(req, res, next) {
@@ -26,10 +22,28 @@ router.use(function timeLog(req, res, next) {
  * @apiSuccess {Array} stock Filtered stock list.
  */
 router.get('/filterStockMagic', function(req, res) {
-    co(function* () {
-        let result = yield stock.filterStockMagic(req.db);
+    req.redis.get('filterStockMagic', function (err, replies) {
+        if (replies) {
+            let data = JSON.parse(replies);
 
-        res.json(result);
+            res.json(data);
+        } else {
+            co(function* () {
+                let result = yield stock.filterStockMagic(req.db);
+
+                // 保存数据到缓存
+                req.redis.set('filterStockMagic', JSON.stringify(result), function (err, reply) {
+                    if (err) {
+                        console.log('update redis stock failure. %s'.red, err);
+                    } else {
+                        // 设置数据在缓存中的时间为1天
+                        req.redis.expire('filterStockMagic', cons.SECONDS_OF_A_DAY);
+                    }
+                });
+
+                res.json(result);
+            });
+        }
     });
 });
 

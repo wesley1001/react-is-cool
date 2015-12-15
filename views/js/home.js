@@ -7,7 +7,8 @@ let TryButton = React.createClass({
             dataType: 'json',
             cache: false,
             success: function(data) {
-                this.setState({data: data});
+                console.log(data);
+                this.props.onTryClick(data);
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -25,48 +26,78 @@ let TryButton = React.createClass({
 
 const {Table, Column, Cell} = FixedDataTable;
 
-const rows = [
-    ['a1', 'b1', 'c1'],
-    ['a2', 'b2', 'c2'],
-    ['a3', 'b3', 'c3'],
-    // .... and more
-];
+const DateCell = ({rowIndex, data, col, ...props}) => (
+    <Cell {...props}>
+    {data[rowIndex][col].split("T")[0]}
+    </Cell>
+);
+
+const TextCell = ({rowIndex, data, col, ...props}) => (
+    <Cell {...props}>
+    {data[rowIndex][col]}
+    </Cell>
+);
 
 let StockTable = React.createClass({
         render: function() {
             return (
                 <Table
                     rowHeight={50}
-                    rowsCount={rows.length}
-                    width={5000}
-                    height={5000}
-                    headerHeight={50}>
+                    rowsCount={this.props.data.length}
+                    width={600}
+                    height={400}
+                    headerHeight={50}
+                    {...this.props}>
                     <Column
-                        header={<Cell>Col 1</Cell>}
-                        cell={<Cell>Column 1 static content</Cell>}
-                        width={2000}
+                        header={<Cell>股票代码</Cell>}
+                        cell={<TextCell data={this.props.data} col="stock_id" />}
+                        width={100}
                     />
                     <Column
-                        header={<Cell>Col 2</Cell>}
-                        cell={<Cell>Column 2 static content</Cell>}
-                        width={1000}
+                        header={<Cell>统计最后日期</Cell>}
+                        cell={<DateCell data={this.props.data} col="date" />}
+                        width={140}
                     />
                     <Column
-                        header={<Cell>Col 3</Cell>}
-                        cell={({rowIndex, ...props}) => (
-                        <Cell {...props}>
-                            Data for column 3: {rows[rowIndex][2]}
-                        </Cell>
-                    )}
-                    width={2000}
-                />
+                        header={<Cell>RSI1</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi1" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>RSI2</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi2" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>RSI3</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi3" />}
+                        width={100}
+                    />
                 </Table>
             );
         }
 });
 
+let FilterStockBox = React.createClass({
+    handleTryClick: function(data) {
+        this.setState({data: data});
+    },
+    getInitialState: function() {
+        return {data: []};
+    },
+    render: function() {
+        return (
+            <div className="filterStockBox">
+                <TryButton url="/api/filterStockMagic" onTryClick={this.handleTryClick} />
+                <h1 />
+                <StockTable data={this.state.data} />
+            </div>
+        );
+    }
+});
+
 ReactDOM.render(
-    <StockTable url="/api/filterStockMagic" />,
+    <FilterStockBox />,
     document.getElementById('content')
 );
 

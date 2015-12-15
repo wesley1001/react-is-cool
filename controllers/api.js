@@ -17,7 +17,14 @@ router.use(function timeLog(req, res, next) {
     console.log('Time: ', Date.now());
     next();
 });
-// define the home page route
+
+/**
+ * @api {get} /api/filterStockMagic Request Magically filter Stock information
+ * @apiName FilterStockMagic
+ * @apiGroup API
+ *
+ * @apiSuccess {Array} stock Filtered stock list.
+ */
 router.get('/filterStockMagic', function(req, res) {
     co(function* () {
         let result = yield stock.filterStockMagic(req.db);

@@ -36,7 +36,8 @@ app.use('/react', express.static(__dirname + '/node_modules/react/dist/'));
 app.use('/react-dom', express.static(__dirname + '/node_modules/react-dom/dist/'));
 app.use('/jquery', express.static(__dirname + '/node_modules/jquery/dist/'));
 app.use('/bootstrap', express.static(__dirname + '/node_modules/bootstrap/dist/'));
-app.use('/fixed-data-table', express.static(__dirname + '/node_modules/fixed-data-table//dist/'));
+app.use('/fixed-data-table', express.static(__dirname + '/node_modules/fixed-data-table/dist/'));
+app.use('/immutable', express.static(__dirname + '/node_modules/immutable/dist/'));
 
 /**
  * 连接MySQL数据库

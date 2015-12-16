@@ -73,5 +73,39 @@ module.exports = {
         }
 
         return [up_avg / (up_avg + down_avg) * 100, up_avg, down_avg];
+    },
+
+    /**
+     * 根据RSI条件过滤股票数据
+     * @param operator 操作符 ex: >80
+     * @param data 股票数据
+     * @returns [stock data]
+     */
+    filterRSI: function (operator, data) {
+    if (operator.indexOf('>=') > -1) {
+        let n = Number(operator.replace('>=', ''));
+
+        return data.filter(stock => {
+            return stock['rsi1'] >= n;
+        });
+    } else if (operator.indexOf('>') > -1) {
+        let n = Number(operator.replace('>', ''));
+
+        return data.filter(stock => {
+            return stock['rsi1'] > n;
+        });
+    } else if (operator.indexOf('<=') > -1) {
+        let n = Number(operator.replace('<=', ''));
+
+        return data.filter(stock => {
+            return stock['rsi1'] <= n;
+        });
+    } else if (operator.indexOf('<') > -1) {
+        let n = Number(operator.replace('<', ''));
+
+        return data.filter(stock => {
+            return stock['rsi1'] < n;
+        });
     }
+}
 }

@@ -7,6 +7,7 @@ let iconv = require('iconv-lite');
 let colors = require('colors');
 let co = require('co')
 let underscore = require('underscore');
+let Immutable = require('immutable');
 
 // 引入自有库
 let cons = require('./cons');
@@ -507,7 +508,7 @@ function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
  * 获取每个行业的近期涨停最多的股票
  * @param db 数据库连接池
  */
-function getTopStocksPerIndustry (db) {
+function getTopStocksPerIndustry (db, dealDate) {
     return new Promise(function (resolve, reject) {
         db.getConnection(function (err, connection) {
             if (err) {
@@ -515,13 +516,11 @@ function getTopStocksPerIndustry (db) {
 
                 reject(err);
             } else {
-                let topStocks = [];
-
                 // 提取最近一个月的起始日期
-                let from = new Date();
+                let from = new Date(dealDate);
                 from.setMonth(from.getMonth() - 1);
 
-                let to = new Date();
+                let to = new Date(dealDate);
                 to.setDate(to.getDate() - 1);
 
                 // 获取此股票的所有交易日数据
@@ -546,13 +545,16 @@ function getTopStocksPerIndustry (db) {
 
                                 connection.release();
 
-                                let combineStocks = [];
+                                //let combineStocks = [];
+                                //
+                                //val.forEach(x => {
+                                //    x.map(y => combineStocks.push(y));
+                                //});
+                                //
+                                //resolve(combineStocks);
 
-                                val.forEach(x => {
-                                    x.map(y => combineStocks.push(y));
-                                });
-
-                                resolve(combineStocks);
+                                console.log([].concat.apply([], val));
+                                resolve([].concat.apply([], val));
                             });
                         }
                     });
@@ -567,12 +569,14 @@ function getTopStocksPerIndustry (db) {
  * @param stockId
  * @returns {Promise}
  */
-function getStockRSI (connection, stockId) {
+function getStockRSI (connection, stockId, dealDate) {
     return new Promise(function (resolve, reject) {
-        // 获取此股票的所有交易日数据
-        let query = connection.query('SELECT stock_id, rsi1, rsi2, rsi3, `date` FROM t_stock_rsi ' +
-            'WHERE stock_id = ? ORDER BY `date` DESC LIMIT 1',
-            [stockId],
+        // 获取此股票的指定交易日的RSI数据
+        let query = connection.query('SELECT rsi.stock_id, stock.stock_name, rsi.rsi1, rsi.rsi2, rsi.rsi3, ' +
+            'DATE_FORMAT(rsi.`date`, "%Y-%m-%d") as `date` ' +
+            'FROM t_stock_rsi rsi, t_stock_list stock ' +
+            'WHERE rsi.stock_id = ? AND rsi.stock_id = stock.stock_id AND DATE_FORMAT(rsi.`date`, "%Y-%m-%d") = ?',
+            [stockId, dealDate],
             function (err, result) {
                 if (err) {
                     reject(err);
@@ -591,7 +595,7 @@ function getStockRSI (connection, stockId) {
  * @param stocks
  * @returns {Promise}
  */
-function getStocksRSI (db, stocks) {
+function getStocksRSI (db, stocks, dealDate) {
     return new Promise(function (resolve, reject) {
         db.getConnection(function (err, connection) {
             if (err) {
@@ -603,7 +607,7 @@ function getStocksRSI (db, stocks) {
                     let result = [];
 
                     for (let i = 0; i < stocks.length; i++) {
-                        let data = yield getStockRSI(connection, stocks[i]['stock_id']);
+                        let data = yield getStockRSI(connection, stocks[i]['stock_id'], dealDate);
                         result.push(data.slice(0, 1));
                     }
 
@@ -620,23 +624,18 @@ function getStocksRSI (db, stocks) {
 
 /**
  * 过滤股票
- * @param db
+ * @param db 数据库连接
+ * @param dealDate 交易日期
  */
-function filterStockMagic (db) {
+function getStockAnalysisData (db, dealDate) {
     return new Promise(function (resolve, reject) {
         co(function* () {
             // 获取每个行业的近期涨停最多的股票
-            let topStocks = yield getTopStocksPerIndustry(db);
+            let topStocks = yield getTopStocksPerIndustry(db, dealDate);
             // 获取对应股票的RSI指数
-            let stockRSIs = yield getStocksRSI(db, topStocks);
+            let stockRSIs = yield getStocksRSI(db, topStocks, dealDate);
 
-            // 将数据整形，然后过滤数据
-            let result = [].concat.apply([],stockRSIs).filter(stock => {
-                return stock['rsi1'] < 40;
-            });
-            console.log(result);
-
-            return result;
+            return [].concat.apply([], stockRSIs);
         }).then(function (val) {
             resolve(val);
         });
@@ -662,5 +661,5 @@ module.exports = {
     calculateStockRSIs: calculateStockRSIs,
     updateAllStocksRSI: updateAllStocksRSI,
     getTopStocksPerIndustry: getTopStocksPerIndustry,
-    filterStockMagic: filterStockMagic
+    getStockAnalysisData: getStockAnalysisData
 };

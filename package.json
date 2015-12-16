@@ -30,6 +30,7 @@
     "iconv-lite": "^0.4.13",
     "immutable": "^3.7.5",
     "jquery": "^2.1.4",
+    "moment": "^2.10.6",
     "morgan": "~1.6.1",
     "mysql": "^2.9.0",
     "progress": "^1.1.8",

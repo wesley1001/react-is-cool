@@ -1,59 +1,49 @@
 'use strict'
 
-// 复选选项框
-let CheckOptionBox = React.createClass({
-    // 复选内容变化
-    handleContentChange: function(e) {
-        let content = e.target.value;
-        this.setState({content: content});
-        if (this.state.checked) {
-            this.props.onContentChange(content);
-        }
-    },
-    // 复选框变化
-    handleCheckChange: function(e) {
-        let currentChecked = !this.state.checked;
-
-        this.setState({checked: currentChecked});
-        if (currentChecked) {
-            this.props.onContentChange(this.state.content);
-        } else {
-            this.props.onContentChange(null);
-        }
-    },
-    getInitialState: function() {
-        return {checked: this.props.defaultChecked, content: ""};
-    },
-    render: function() {
-        return (
-            <div className="row">
-                <div className="col-lg-12">
-                    <label>{this.props.label}</label>
-                    <div className="input-group">
-                        <span className="input-group-addon">
-                            <input type="checkbox" aria-label="RSI" checked={this.state.checked}
-                                onChange={this.handleCheckChange}/>
-                        </span>
-                        <input type="text" className="form-control" placeholder={this.props.holder}
-                            value={this.state.content}
-                            onChange={this.handleContentChange}/>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-});
+let { Button, Input, Modal, Grid, Row, Col, Glyphicon } = ReactBootstrap;
 
 // 筛选选项区域
 let FilterOptionsBox = React.createClass({
+    // 过滤股票按钮点击事件
     handleFilterClick: function(event) {
         $.ajax({
-            url: this.props.url,
+            url: this.props.filterUrl,
             dataType: 'json',
-            data: this.state,
+            data: {
+                dealDate: this.state.dealDate,
+                rsi: this.state.rsi
+            },
             cache: false,
             success: function(data) {
-                this.props.onTryClick(data);
+                this.setState({'filteredData': data});
+                this.props.onFilterClick(data);
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+        });
+    },
+    // 模拟买入按钮点击事件
+    handleMockBuyClick: function(event) {
+        $.ajax({
+            url: this.props.mockBuyUrl,
+            dataType: 'json',
+            type: 'POST',
+            data: {jsonData: JSON.stringify(this.state)},
+            cache: false,
+            success: function(data) {
+                console.log(data);
+
+                let result = '<p>您的战绩如下：</p><p>每股各买入100股，总买入金额为：' + data.buyAmount +
+                    '元</p><p>' + data.holdDay + '天后总卖出金额为：' + data.saleAmount +
+                    '元</p><p>结果为：' + data.diff + '元</p>';
+                this.setState({
+                    showBuyResult: true,
+                    buyAmount: data.buyAmount,
+                    holdDay: data.holdDay,
+                    saleAmount: data.saleAmount,
+                    diff: data.diff
+                });
             }.bind(this),
             error: function(xhr, status, err) {
                 console.error(this.props.url, status, err.toString());
@@ -66,27 +56,69 @@ let FilterOptionsBox = React.createClass({
     handleRSIChange: function(data) {
         this.setState({rsi: data});
     },
+    handleHoldDateChange: function(data) {
+        this.setState({holdDay: data});
+    },
+    getInitialState: function() {
+        return { showBuyResult: false, buyAmount: 0, holdDay: 0, saleAmount: 0, diff: 0 };
+    },
+    close() {
+        this.setState({ showBuyResult: false });
+    },
+    open() {
+        this.setState({ showBuyResult: true });
+    },
     render: function() {
         return (
-            <div>
-                <div className="row">
-                    <label>条件筛选</label>
-                    <h1 />
-                </div>
+            <Grid>
+                <Row className="show-grid">
+                    <Col lg={12}>
+                        <h4>股票筛选</h4>
+                    </Col>
+                </Row>
                 <CheckOptionBox label="指定交易日期" holder="请输入交易日期（如果不输入则默认为当前日期）。样例：2015-01-01"
                     defaultChecked={false}
                     onContentChange={this.handleDealDateChange} />
                 <h1 />
-                <CheckOptionBox label="RSI" holder="请输入范围。样例：>80 or <=20"
+                <CheckOptionBox label="RSI1" holder="请输入范围。样例：>80 or <=20"
                     defaultChecked={false}
                     onContentChange={this.handleRSIChange} />
                 <h1 />
                 <CheckOptionBox label="MACD" holder="请输入范围。样例：>80 or <=20" />
                 <h1 />
-                <button className="btn btn-default" type="button" onClick={this.handleFilterClick}>
-                过滤股票
-                </button>
-            </div>
+                <Button bsStyle="default" onClick={this.handleFilterClick}>
+                    <Glyphicon glyph="search" />过滤股票
+                </Button>
+
+                <hr />
+                <Row className="show-grid">
+                    <Col lg={12}>
+                        <h4>模拟买入</h4>
+                    </Col>
+                </Row>
+                <CheckOptionBox label="持有天数" holder="请输入持有天数（如果不输入则默认为7天）。样例：7"
+                    defaultChecked={false}
+                    onContentChange={this.handleHoldDateChange} />
+                <h1 />
+                <Button bsStyle="danger" onClick={this.handleMockBuyClick}>
+                    <Glyphicon glyph="yen" />模拟买入
+                </Button>
+
+                <Modal show={this.state.showBuyResult} onHide={this.close}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>模拟买入结果</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <p>您的战绩如下：</p>
+                        <p>每股各买入100股，总买入金额为：{this.state.buyAmount}元</p>
+                        <p>{this.state.holdDay}天后总卖出金额为：{this.state.saleAmount}元</p>
+                        <p>结果为：{this.state.diff}元</p>
+                    </Modal.Body>
+                    <Modal.Footer>
+                    <Button onClick={this.close}>关闭</Button>
+                    </Modal.Footer>
+                </Modal>
+            </Grid>
         );
     }
 });
@@ -107,48 +139,54 @@ const TextCell = ({rowIndex, data, col, ...props}) => (
 );
 
 let StockTable = React.createClass({
-        render: function() {
-            return (
-                <Table
-                    rowHeight={50}
-                    rowsCount={this.props.data.length}
-                    width={600}
-                    height={400}
-                    headerHeight={50}
-                    {...this.props}>
-                    <Column
-                        header={<Cell>股票代码</Cell>}
-                        cell={<TextCell data={this.props.data} col="stock_id" />}
-                        width={100}
-                    />
-                    <Column
-                        header={<Cell>股票名称</Cell>}
-                        cell={<TextCell data={this.props.data} col="stock_name" />}
-                        width={100}
-                    />
-                    <Column
-                        header={<Cell>统计最后日期</Cell>}
-                        cell={<DateCell data={this.props.data} col="date" />}
-                        width={140}
-                    />
-                    <Column
-                        header={<Cell>RSI1</Cell>}
-                        cell={<TextCell data={this.props.data} col="rsi1" />}
-                        width={100}
-                    />
-                    <Column
-                        header={<Cell>RSI2</Cell>}
-                        cell={<TextCell data={this.props.data} col="rsi2" />}
-                        width={100}
-                    />
-                    <Column
-                        header={<Cell>RSI3</Cell>}
-                        cell={<TextCell data={this.props.data} col="rsi3" />}
-                        width={100}
-                    />
-                </Table>
-            );
-        }
+    render: function() {
+
+        let data = this.props.data;
+
+        return (
+            <Table
+                rowHeight={50}
+                rowsCount={this.props.data.length}
+                width={600}
+                height={400}
+                headerHeight={50}
+                rowClassNameGetter={function(rowIndex) { return ''; }}
+                onRowClick={function(e, rowIndex) {
+                    data[rowIndex].selected = true; }}
+                {...this.props}>
+                <Column
+                    header={<Cell>股票代码</Cell>}
+                    cell={<TextCell data={this.props.data} col="stock_id" />}
+                    width={100}
+                />
+                <Column
+                    header={<Cell>股票名称</Cell>}
+                    cell={<TextCell data={this.props.data} col="stock_name" />}
+                    width={100}
+                />
+                <Column
+                    header={<Cell>统计最后日期</Cell>}
+                    cell={<DateCell data={this.props.data} col="date" />}
+                    width={140}
+                />
+                <Column
+                    header={<Cell>RSI1</Cell>}
+                    cell={<TextCell data={this.props.data} col="rsi1" />}
+                    width={100}
+                />
+                <Column
+                    header={<Cell>RSI2</Cell>}
+                    cell={<TextCell data={this.props.data} col="rsi2" />}
+                    width={100}
+                />
+                <Column
+                    header={<Cell>RSI3</Cell>}
+                    cell={<TextCell data={this.props.data} col="rsi3" />}
+                    width={100}
+                />
+            </Table>
+        );
+    }
 });
 
 let FilterStockBox = React.createClass({
@@ -161,9 +199,16 @@ let FilterStockBox = React.createClass({
     render: function() {
         return (
             <div className="filterStockBox">
-                <FilterOptionsBox url="/api/filterStockMagic" onTryClick={this.handleFilterClick} />
-                <h1 />
-                <StockTable data={this.state.data} />
+                <FilterOptionsBox
+                    filterUrl="/api/stock/filter"
+                    mockBuyUrl="/api/stock/mockBuy"
+                    onFilterClick={this.handleFilterClick} />
+                <hr />
+                <Row>
+                    <Col lg={12}>
+                        <StockTable data={this.state.data} />
+                    </Col>
+                </Row>
             </div>
         );
     }
@@ -174,130 +219,20 @@ ReactDOM.render(
     document.getElementById('content')
 );
 
-//let Comment = React.createClass({
-//        render: function() {
-//            return (
-//                <div className="comment">
-//                    <h2 className="commentAuthor">
-//                        {this.props.author}
-//                    </h2>
-//                    {this.props.children}
-//                </div>
-//            );
-//        }
-//});
-//
-//let CommentList = React.createClass({
-//        render: function() {
-//            var commentNodes = this.props.data.map(function(comment) {
-//                return (
-//                    <Comment author={comment.author} key={comment.id}>
-//                        {comment.text}
-//                    </Comment>
-//                );
-//            });
-//            return (
-//                <div className="commentList">
-//                    {commentNodes}
-//                </div>
-//            );
-//        }
-//});
-//
-//let CommentForm = React.createClass({
-//    getInitialState: function() {
-//        return {author: '', text: ''};
-//    },
-//    handleAuthorChange: function(e) {
-//        this.setState({author: e.target.value});
-//    },
-//    handleTextChange: function(e) {
-//        this.setState({text: e.target.value});
-//    },
-//    handleSubmit: function(e) {
-//        e.preventDefault();
-//        var author = this.state.author.trim();
-//        var text = this.state.text.trim();
-//        if (!text || !author) {
-//            return;
-//        }
-//        this.props.onCommentSubmit({author: author, text: text});
-//        // TODO: send request to the server
-//        this.setState({author: '', text: ''});
-//    },
-//    render: function() {
-//        return (
-//            <form className="commentForm" onSubmit={this.handleSubmit}>
-//                <input
-//                    type="text"
-//                    placeholder="Your name"
-//                    value={this.state.author}
-//                    onChange={this.handleAuthorChange}
-//                />
-//                <input
-//                    type="text"
-//                    placeholder="Say something..."
-//                    value={this.state.text}
-//                    onChange={this.handleTextChange}
-//                />
-//                <input type="submit" value="Post" />
-//            </form>
-//        );
-//    }
-//});
-//
-//let CommentBox = React.createClass({
-//        handleCommentSubmit: function(comment) {
-//            var comments = this.state.data;
-//            // Optimistically set an id on the new comment. It will be replaced by an
-//            // id generated by the server. In a production application you would likely
-//            // not use Date.now() for this and would have a more robust system in place.
-//            comment.id = Date.now();
-//            var newComments = comments.concat([comment]);
-//            this.setState({data: newComments});
-//
-//            $.ajax({
-//                url: this.props.url,
-//                dataType: 'json',
-//                type: 'POST',
-//                data: comment,
-//                success: function(data) {
-//                    this.setState({data: data});
-//                }.bind(this),
-//                error: function(xhr, status, err) {
-//                    this.setState({data: comments});
-//                    console.error(this.props.url, status, err.toString());
-//                }.bind(this)
-//            });
-//        },
-//        getInitialState: function() {
-//            return {data: []};
-//        },
-//        componentDidMount: function() {
-//            $.ajax({
-//                url: this.props.url,
-//                dataType: 'json',
-//                cache: false,
-//                success: function(data) {
-//                    this.setState({data: data});
-//                }.bind(this),
-//                error: function(xhr, status, err) {
-//                    console.error(this.props.url, status, err.toString());
-//                }.bind(this)
-//            });
-//        },
-//        render: function() {
-//            return (
-//                <div className="commentBox">
-//                    <h1>Comments</h1>
-//                    <CommentList data={this.state.data} />
-//                    <CommentForm onCommentSubmit={this.handleCommentSubmit} />
-//                </div>
-//            );
-//        }
-//});
-//
-//ReactDOM.render(
-//    <CommentBox url="/api/comments" />,
-//    document.getElementById('content')
-//);
+var parseDate = d3.time.format("%Y-%m-%d").parse;
+d3.tsv("//rrag.github.io/react-stockcharts/data/MSFT.tsv", (err, data) => {
+    /* change MSFT.tsv to MSFT_full.tsv above to see how this works with lots of data points */
+    data.forEach((d, i) => {
+        d.date = new Date(parseDate(d.date).getTime());
+        d.open = +d.open;
+        d.high = +d.high;
+        d.low = +d.low;
+        d.close = +d.close;
+        d.volume = +d.volume;
+        // console.log(d);
+    });
+    /* change the type from hybrid to svg to compare the performance between svg and canvas */
+    ReactDOM.render(
+        <CandleStickStockScaleChartWithVolumeHistogramV3 data={data} type="hybrid" />,
+        document.getElementById("chart"));
+});

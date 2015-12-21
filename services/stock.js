@@ -326,6 +326,70 @@ function getDailyQuote(db, stockId) {
 }
 
 /**
+ * 获取指定股票的交易行情
+ * @param connection 数据库连接
+ * @param stockId 股票代码
+ * @param dealDate 交易日期
+ */
+function getStockTransactionByDate (connection, stockId, dealDate) {
+    //console.log('get %s stock transaction...'.yellow, stockId);
+
+    return new Promise(function (resolve, reject) {
+        // 获取此股票的指定交易日数据
+        let query = connection.query('SELECT t_stock.stock_id, t_stock.stock_name, t_trans.close, t_trans.date ' +
+            'FROM t_stock_list t_stock, t_stock_transaction_history t_trans ' +
+            'WHERE t_stock.stock_id = t_trans.stock_id ' +
+            'AND t_stock.stock_id = ? ' +
+            'AND t_trans.date >= ? ' +
+            'ORDER BY t_trans.date ' +
+            'LIMIT 1',
+            [stockId, dealDate],
+            function (err, result) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(result);
+                }
+            });
+
+        console.log(query.sql);
+    });
+}
+
+/**
+ * 获取指定股票集的交易
+ * @param db
+ * @param stocks
+ * @returns {Promise}
+ */
+function getStockTransactionsByDate (db, stocks, dealDate) {
+    return new Promise(function (resolve, reject) {
+        db.getConnection(function (err, connection) {
+            if (err) {
+                console.error("cannot get db connection. \n%s".red, err);
+
+                reject(err);
+            } else {
+                co(function* () {
+                    let result = [];
+
+                    for (let i = 0; i < stocks.length; i++) {
+                        let data = yield getStockTransactionByDate(connection, stocks[i]['stock_id'], dealDate);
+                        result.push(data.slice(0, 1));
+                    }
+
+                    return result;
+                }).then(function (val) {
+                    connection.release();
+
+                    resolve([].concat.apply([], val));
+                });
+            }
+        });
+    });
+}
+
+/**
  * 计算单只股票某日的RSI指数
  * @param connection 数据库连接
  * @param stockId 股票Id
@@ -459,10 +523,6 @@ function calculateStockRSIs(db, stockId) {
     }
 }
 
-function calculateStocksRSIs(db) {
-
-}
-
 /**
  * 获取指定行业的近期涨停最多的股票
  * @param connection 数据库连接
@@ -491,10 +551,6 @@ function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
                 if (err) {
                     reject(err);
                 } else {
-                    //console.log(result);
-
-                    //topStocks.push({industry: industry, data: result});
-
                     resolve(result.map(x => {
                         x.industry = industry;
                         return x;
@@ -661,5 +717,6 @@ module.exports = {
     calculateStockRSIs: calculateStockRSIs,
     updateAllStocksRSI: updateAllStocksRSI,
     getTopStocksPerIndustry: getTopStocksPerIndustry,
-    getStockAnalysisData: getStockAnalysisData
+    getStockAnalysisData: getStockAnalysisData,
+    getStockTransactionsByDate: getStockTransactionsByDate
 };

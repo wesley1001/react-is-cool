@@ -6,3 +6,12 @@ body {
 a {
   color: #00B7FF;
 }
+
+/* For Table */
+.fixedDataTableRowLayout_rowWrapper:hover .public_fixedDataTableCell_main {
+    background-color: #c7ddef;
+}
+
+.row-selected {
+    background-color: #c7ddef;
+}

@@ -1,5 +1,7 @@
 'use strict'
 
+let parseDate = d3.time.format("%Y-%m-%d").parse;
+
 let { Button, Input, Modal, Grid, Row, Col, Glyphicon } = ReactBootstrap;
 
 // 筛选选项区域
@@ -139,52 +141,96 @@ const TextCell = ({rowIndex, data, col, ...props}) => (
 );
 
 let StockTable = React.createClass({
+    getInitialState: function() {
+        return { selectedStockName: "" };
+    },
     render: function() {
-
-        let data = this.props.data;
+        let self = this;
 
         return (
-            <Table
-                rowHeight={50}
-                rowsCount={this.props.data.length}
-                width={600}
-                height={400}
-                headerHeight={50}
-                rowClassNameGetter={function(rowIndex) { return ''; }}
-                onRowClick={function(e, rowIndex) {
-                    data[rowIndex].selected = true; }}
-                {...this.props}>
-                <Column
-                    header={<Cell>股票代码</Cell>}
-                    cell={<TextCell data={this.props.data} col="stock_id" />}
-                    width={100}
-                />
-                <Column
-                    header={<Cell>股票名称</Cell>}
-                    cell={<TextCell data={this.props.data} col="stock_name" />}
-                    width={100}
-                />
-                <Column
-                    header={<Cell>统计最后日期</Cell>}
-                    cell={<DateCell data={this.props.data} col="date" />}
-                    width={140}
-                />
-                <Column
-                    header={<Cell>RSI1</Cell>}
-                    cell={<TextCell data={this.props.data} col="rsi1" />}
-                    width={100}
-                />
-                <Column
-                    header={<Cell>RSI2</Cell>}
-                    cell={<TextCell data={this.props.data} col="rsi2" />}
-                    width={100}
-                />
-                <Column
-                    header={<Cell>RSI3</Cell>}
-                    cell={<TextCell data={this.props.data} col="rsi3" />}
-                    width={100}
-                />
-            </Table>
+            <div>
+                <Table
+                    rowHeight={50}
+                    rowsCount={this.props.data.length}
+                    width={600}
+                    height={400}
+                    headerHeight={50}
+                    rowClassNameGetter={function(rowIndex) { return ''; }}
+                    onRowClick={
+                        function(e, rowIndex) {
+                            self.setState({selectedStockName: "K线图 - " + self.props.data[rowIndex].stock_name});
+
+                            $.ajax({
+                                url: "/api/stock/transaction",
+                                dataType: 'json',
+                                data: {
+                                    dealDate: self.props.data[rowIndex].date,
+                                    stockId: self.props.data[rowIndex].stock_id
+                                },
+                                cache: false,
+                                success: function(data) {
+                                    data.forEach((d, i) => {
+                                        d.date = new Date(parseDate(d.date).getTime());
+                                        d.open = +d.open;
+                                        d.high = +d.high;
+                                        d.low = +d.low;
+                                        d.close = +d.close;
+                                        d.volume = (+d.volume) / 100;   // 需要将股转成手
+                                        // console.log(d);
+                                    });
+
+                                    console.log(data);
+
+                                    /* change the type from hybrid to svg to compare the performance between svg and canvas */
+                                    ReactDOM.render(
+                                        <CandleStickStockScaleChartWithVolumeHistogramV3 data={data} type="hybrid" />,
+                                        document.getElementById("chart"));
+
+                                }.bind(this),
+                                error: function(xhr, status, err) {
+                                    console.error("/api/stock/transaction", status, err.toString());
+                                }.bind(this)
+                            });
+                        }
+                    }
+                    {...this.props}>
+                    <Column
+                        header={<Cell>股票代码</Cell>}
+                        cell={<TextCell data={this.props.data} col="stock_id" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>股票名称</Cell>}
+                        cell={<TextCell data={this.props.data} col="stock_name" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>统计最后日期</Cell>}
+                        cell={<DateCell data={this.props.data} col="date" />}
+                        width={140}
+                    />
+                    <Column
+                        header={<Cell>RSI1</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi1" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>RSI2</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi2" />}
+                        width={100}
+                    />
+                    <Column
+                        header={<Cell>RSI3</Cell>}
+                        cell={<TextCell data={this.props.data} col="rsi3" />}
+                        width={100}
+                    />
+                </Table>
+                <hr />
+                <h3>{this.state.selectedStockName}</h3>
+                <div id="chart" ></div>
+                <h1 />
+                <Button onClick={this.close}>最新走势</Button>
+            </div>
         );
     }
 });
@@ -218,21 +264,3 @@ ReactDOM.render(
     <FilterStockBox />,
     document.getElementById('content')
 );
-
-var parseDate = d3.time.format("%Y-%m-%d").parse;
-d3.tsv("//rrag.github.io/react-stockcharts/data/MSFT.tsv", (err, data) => {
-    /* change MSFT.tsv to MSFT_full.tsv above to see how this works with lots of data points */
-    data.forEach((d, i) => {
-        d.date = new Date(parseDate(d.date).getTime());
-        d.open = +d.open;
-        d.high = +d.high;
-        d.low = +d.low;
-        d.close = +d.close;
-        d.volume = +d.volume;
-        // console.log(d);
-    });
-    /* change the type from hybrid to svg to compare the performance between svg and canvas */
-    ReactDOM.render(
-        <CandleStickStockScaleChartWithVolumeHistogramV3 data={data} type="hybrid" />,
-        document.getElementById("chart"));
-});

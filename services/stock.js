@@ -352,12 +352,12 @@ function getStockTransactionByDate (connection, stockId, dealDate) {
                 }
             });
 
-        console.log(query.sql);
+        //console.log(query.sql);
     });
 }
 
 /**
- * 获取指定股票集的交易
+ * 获取指定股票集的交易行情
  * @param db
  * @param stocks
  * @returns {Promise}
@@ -384,6 +384,47 @@ function getStockTransactionsByDate (db, stocks, dealDate) {
 
                     resolve([].concat.apply([], val));
                 });
+            }
+        });
+    });
+}
+
+/**
+ * 获取指定股票的指定交易日之前的交易行情
+ * @param db
+ * @param stocks
+ * @returns {Promise}
+ */
+function getStockTransactionTileDate (db, stockId, dealDate) {
+    return new Promise(function (resolve, reject) {
+        db.getConnection(function (err, connection) {
+            if (err) {
+                console.error("cannot get db connection. \n%s".red, err);
+
+                reject(err);
+            } else {
+                // 获取此股票的指定交易日数据
+                let query = connection.query('SELECT t_stock.stock_id, t_stock.stock_name, DATE_FORMAT(t_trans.date, "%Y-%m-%d") AS date, ' +
+                    't_trans.open, t_trans.close, t_trans.high, t_trans.low, t_trans.volume ' +
+                    'FROM t_stock_list t_stock, t_stock_transaction_history t_trans ' +
+                    'WHERE t_stock.stock_id = t_trans.stock_id ' +
+                    'AND t_stock.stock_id = ? ' +
+                    'AND t_trans.date <= ? ' +
+                    'ORDER BY t_trans.date ',
+                    [stockId, dealDate],
+                    function (err, result) {
+                        if (err) {
+                            connection.release();
+
+                            reject(err);
+                        } else {
+                            connection.release();
+
+                            resolve(result);
+                        }
+                    });
+
+                console.log(query.sql);
             }
         });
     });
@@ -718,5 +759,6 @@ module.exports = {
     updateAllStocksRSI: updateAllStocksRSI,
     getTopStocksPerIndustry: getTopStocksPerIndustry,
     getStockAnalysisData: getStockAnalysisData,
-    getStockTransactionsByDate: getStockTransactionsByDate
+    getStockTransactionsByDate: getStockTransactionsByDate,
+    getStockTransactionTileDate: getStockTransactionTileDate
 };

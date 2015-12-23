@@ -145,4 +145,30 @@ router.post('/stock/mockBuy', function(req, res) {
     });
 });
 
+
+/**
+ * @api {get} /api/stock/transaction 请求获取股票交易信息
+ * @apiName 获取股票交易信息
+ * @apiGroup api/stock
+ *
+ * @apiParam {Date} dealDate 交易日期
+ * @apiParam {String} stockId 股票代码
+ *
+ * @apiSuccess {List} 股票交易信息.
+ */
+router.get('/stock/transaction', function(req, res) {
+    let dealDate = req.query.dealDate;
+    let stockId = req.query.stockId;
+
+    co(function* () {
+        let stockTrans = yield stock.getStockTransactionTileDate(req.db, stockId, dealDate);
+
+        res.json(stockTrans);
+
+        //res.json(stockTrans.map(x => {
+        //    return [x.date, x.open, x.high, x.low, x.close, x.volume, 0];
+        //}));
+    });
+});
+
 module.exports = router;

@@ -131,10 +131,13 @@ let FilterOptionsBox = React.createClass({
                     holder="请输入涨幅和取板块头X个股票。样例：7,3"
                     defaultChecked={false}
                     onContentChange={this.handleTopChange} />
+                <CheckOptionBox label="涨停规律"
+                    holder="请输入涨停规律。样例：7,7,-7（解释：第一天涨幅超过7%，第二天涨幅超过7%，第三天[跌]幅超过7%）"
+                    defaultChecked={false}
+                    onContentChange={this.handleTopChange} />
                 <CheckOptionBox label="RSI1" holder="请输入范围。样例：>80 or <=20"
                     defaultChecked={false}
                     onContentChange={this.handleRSIChange} />
-                <CheckOptionBox label="MACD" holder="请输入范围。样例：>80 or <=20" />
                 <Button bsStyle="default" onClick={this.handleFilterClick}>
                     <Glyphicon glyph="search" />过滤股票
                 </Button>
@@ -159,7 +162,7 @@ let FilterOptionsBox = React.createClass({
                         <Modal.Title>模拟买入结果</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
-                        <p>您的战绩如下：</p>
+                        <p>您的成绩如下：</p>
                         <p>每股各买入100股，总买入金额为：{this.state.buyAmount}元</p>
                         <p>持有{this.state.holdDay}天后卖出，总卖出金额为：{this.state.saleAmount}元</p>
                         <p>结果为：{this.state.diff}元 / {this.state.diffPercent}%</p>
@@ -425,7 +428,7 @@ let StockTable = React.createClass({
                         <Modal.Title>模拟买入结果</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
-                        <p>您的战绩如下：</p>
+                        <p>您的成绩如下：</p>
                         <p>买入【{this.state.selectedStockName}】100股，买入金额为：{this.state.buyAmount}元</p>
                         <p>持有{this.state.holdDay}天后卖出，卖出金额为：{this.state.saleAmount}元</p>
                         <p>结果为：{this.state.diff}元 / {this.state.diffPercent}%</p>

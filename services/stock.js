@@ -664,7 +664,7 @@ function getStockRSI (connection, stockId, dealDate) {
     return new Promise(function (resolve, reject) {
         // 获取此股票的指定交易日的RSI数据
         let query = connection.query('SELECT rsi.stock_id, stock.stock_name, t_trans.close, rsi.rsi1, rsi.rsi2, rsi.rsi3, ' +
-            'DATE_FORMAT(rsi.`date`, "%Y-%m-%d") as `date`, stock.industry ' +
+            'DATE_FORMAT(rsi.`date`, "%Y-%m-%d") as `date`, stock.industry, t_trans.p_change ' +
             'FROM t_stock_rsi rsi, t_stock_list stock, t_stock_transaction_history t_trans ' +
             'WHERE rsi.stock_id = ? AND rsi.stock_id = stock.stock_id AND DATE_FORMAT(rsi.`date`, "%Y-%m-%d") = ? ' +
             ' AND t_trans.stock_id = stock.stock_id AND DATE_FORMAT(t_trans.`date`, "%Y-%m-%d") = ? ',

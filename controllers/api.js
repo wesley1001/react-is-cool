@@ -31,56 +31,59 @@ router.use(function timeLog(req, res, next) {
 router.get('/stock/filter', function(req, res) {
     let dealDate = req.query.dealDate ? req.query.dealDate : moment().format('YYYY-MM-DD');
 
+    let topLimit = -100;
+    let topCount = 9999;
+
     if (req.query.top) {        // 龙头股
-        req.redis.get('filterStock_' + dealDate + '_' + req.query.top, function (err, replies) {
-            co(function* () {
-                let data = [];
+        topLimit = Number(req.query.top.split(",")[0]);
+        topCount = Number(req.query.top.split(",")[1]);
+    }
 
-                if (replies) {
-                    data = JSON.parse(replies);
-                } else {
-                    let topLimit = Number(req.query.top.split(",")[0]);
-                    let topCount = Number(req.query.top.split(",")[1]);
-                    data = yield stock.getStockAnalysisData(req.db, dealDate, topLimit, topCount);
+    req.redis.get('filterStock_' + dealDate + '_' + topLimit + '_' + topCount, function (err, replies) {
+        co(function* () {
+            let data = [];
 
-                    // 保存数据到缓存
-                    req.redis.set('filterStock_' + dealDate + '_' + req.query.top,
-                        JSON.stringify(data), function (err, reply) {
+            if (replies) {
+                data = JSON.parse(replies);
+            } else {
+
+                data = yield stock.getStockAnalysisData(req.db, dealDate, topLimit, topCount);
+
+                // 保存数据到缓存
+                req.redis.set('filterStock_' + dealDate + '_' + topLimit + '_' + topCount,
+                    JSON.stringify(data), function (err, reply) {
                         if (err) {
                             console.log('update redis stock failure. %s'.red, err);
                         } else {
                             // 设置数据在缓存中的时间为1天
-                            req.redis.expire('filterStock_' + dealDate + '_' + req.query.top,
+                            req.redis.expire('filterStock_' + dealDate + '_' + topLimit + '_' + topCount,
                                 cons.SECONDS_OF_A_DAY);
                         }
                     });
-                }
+            }
 
-                if (req.query.rsi) {
-                    let rsi = req.query.rsi;
+            if (req.query.rsi) {
+                let rsi = req.query.rsi;
 
-                    let result = [];
+                let result = [];
 
-                    if (rsi.indexOf('and') > -1) {
-                        result = stockHelper.filterRSI(rsi.split('and')[1], stockHelper.filterRSI(rsi.split('and')[0], data))
-                    } else if (rsi.indexOf('or') > -1) {
-                        let result1 = stockHelper.filterRSI(rsi.split('or')[0], data);
-                        let result2 = stockHelper.filterRSI(rsi.split('or')[1], data);
+                if (rsi.indexOf('and') > -1) {
+                    result = stockHelper.filterRSI(rsi.split('and')[1], stockHelper.filterRSI(rsi.split('and')[0], data))
+                } else if (rsi.indexOf('or') > -1) {
+                    let result1 = stockHelper.filterRSI(rsi.split('or')[0], data);
+                    let result2 = stockHelper.filterRSI(rsi.split('or')[1], data);
 
-                        result = result1.concat(result2);
-                    } else {
-                        result = stockHelper.filterRSI(rsi, data);
-                    }
-
-                    res.json(result);
+                    result = result1.concat(result2);
                 } else {
-                    res.json(data);
+                    result = stockHelper.filterRSI(rsi, data);
                 }
-            });
-        });
-    } else {
 
-    }
+                res.json(result);
+            } else {
+                res.json(data);
+            }
+        });
+    });
 });
 
 /**

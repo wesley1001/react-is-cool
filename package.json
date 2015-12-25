@@ -38,6 +38,7 @@
     "react": "^0.14.3",
     "react-bootstrap": "^0.28.1",
     "react-dom": "^0.14.3",
+    "react-progress-bar-plus": "^0.2.2",
     "react-stockcharts": "^0.3.0",
     "redis": "^2.4.2",
     "request": "^2.65.0",

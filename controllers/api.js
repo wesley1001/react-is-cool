@@ -31,48 +31,56 @@ router.use(function timeLog(req, res, next) {
 router.get('/stock/filter', function(req, res) {
     let dealDate = req.query.dealDate ? req.query.dealDate : moment().format('YYYY-MM-DD');
 
-    req.redis.get('filterStock_' + dealDate, function (err, replies) {
-        co(function* () {
-            let data = [];
+    if (req.query.top) {        // 龙头股
+        req.redis.get('filterStock_' + dealDate + '_' + req.query.top, function (err, replies) {
+            co(function* () {
+                let data = [];
 
-            if (replies) {
-                data = JSON.parse(replies);
-            } else {
-                data = yield stock.getStockAnalysisData(req.db, dealDate);
-
-                // 保存数据到缓存
-                req.redis.set('filterStock_' + dealDate, JSON.stringify(data), function (err, reply) {
-                    if (err) {
-                        console.log('update redis stock failure. %s'.red, err);
-                    } else {
-                        // 设置数据在缓存中的时间为1天
-                        req.redis.expire('filterStockMagic', cons.SECONDS_OF_A_DAY);
-                    }
-                });
-            }
-
-            if (req.query.rsi) {
-                let rsi = req.query.rsi;
-
-                let result = [];
-
-                if (rsi.indexOf('and') > -1) {
-                    result = stockHelper.filterRSI(rsi.split('and')[1], stockHelper.filterRSI(rsi.split('and')[0], data))
-                } else if (rsi.indexOf('or') > -1) {
-                    let result1 = stockHelper.filterRSI(rsi.split('or')[0], data);
-                    let result2 = stockHelper.filterRSI(rsi.split('or')[1], data);
-
-                    result = result1.concat(result2);
+                if (replies) {
+                    data = JSON.parse(replies);
                 } else {
-                    result = stockHelper.filterRSI(rsi, data);
+                    let topLimit = Number(req.query.top.split(",")[0]);
+                    let topCount = Number(req.query.top.split(",")[1]);
+                    data = yield stock.getStockAnalysisData(req.db, dealDate, topLimit, topCount);
+
+                    // 保存数据到缓存
+                    req.redis.set('filterStock_' + dealDate + '_' + req.query.top,
+                        JSON.stringify(data), function (err, reply) {
+                        if (err) {
+                            console.log('update redis stock failure. %s'.red, err);
+                        } else {
+                            // 设置数据在缓存中的时间为1天
+                            req.redis.expire('filterStock_' + dealDate + '_' + req.query.top,
+                                cons.SECONDS_OF_A_DAY);
+                        }
+                    });
                 }
 
-                res.json(result);
-            } else {
-                res.json(data);
-            }
+                if (req.query.rsi) {
+                    let rsi = req.query.rsi;
+
+                    let result = [];
+
+                    if (rsi.indexOf('and') > -1) {
+                        result = stockHelper.filterRSI(rsi.split('and')[1], stockHelper.filterRSI(rsi.split('and')[0], data))
+                    } else if (rsi.indexOf('or') > -1) {
+                        let result1 = stockHelper.filterRSI(rsi.split('or')[0], data);
+                        let result2 = stockHelper.filterRSI(rsi.split('or')[1], data);
+
+                        result = result1.concat(result2);
+                    } else {
+                        result = stockHelper.filterRSI(rsi, data);
+                    }
+
+                    res.json(result);
+                } else {
+                    res.json(data);
+                }
+            });
         });
-    });
+    } else {
+
+    }
 });
 
 /**

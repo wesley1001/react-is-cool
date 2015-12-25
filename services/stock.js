@@ -578,12 +578,12 @@ function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
 
     return new Promise(function (resolve, reject) {
         // 获取此股票的所有交易日数据
-        connection.query('SELECT t_stock.stock_id, t_stock.stock_name, COUNT(1) as UP_COUNT ' +
+        let query = connection.query('SELECT t_stock.stock_id, t_stock.stock_name, COUNT(1) as UP_COUNT ' +
             'FROM t_stock_list t_stock, t_stock_transaction_history t_trans ' +
             'WHERE t_stock.stock_id = t_trans.stock_id ' +
             'AND t_stock.industry = ? ' +
             'AND t_trans.date between ? and ? ' +
-            'AND t_trans.p_change = ? ' +
+            'AND t_trans.p_change >= ? ' +
             'GROUP BY t_stock.stock_id, t_stock.stock_name ' +
             'ORDER BY COUNT(1) DESC ' +
             'LIMIT ?',
@@ -598,6 +598,8 @@ function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
                     }));
                 }
             });
+
+        //console.log(query.sql);
     });
 }
 
@@ -605,7 +607,7 @@ function getTopStocksOfIndustry (connection, industry, from, to, up_limit, c) {
  * 获取每个行业的近期涨停最多的股票
  * @param db 数据库连接池
  */
-function getTopStocksPerIndustry (db, dealDate) {
+function getTopStocksPerIndustry (db, dealDate, topLimit, topCount) {
     return new Promise(function (resolve, reject) {
         db.getConnection(function (err, connection) {
             if (err) {
@@ -633,22 +635,14 @@ function getTopStocksPerIndustry (db, dealDate) {
                                     connection, x['industry'],
                                     from,
                                     to,
-                                    cons.TOP_STOCK_LIMIT,
-                                    cons.TOP_STOCK_COUNT));
+                                    topLimit,
+                                    topCount));
 
                                 return stocks;
                             }).then(function (val) {
                                 console.log('get top stocks per industry done.'.green);
 
                                 connection.release();
-
-                                //let combineStocks = [];
-                                //
-                                //val.forEach(x => {
-                                //    x.map(y => combineStocks.push(y));
-                                //});
-                                //
-                                //resolve(combineStocks);
 
                                 console.log([].concat.apply([], val));
                                 resolve([].concat.apply([], val));
@@ -669,11 +663,12 @@ function getTopStocksPerIndustry (db, dealDate) {
 function getStockRSI (connection, stockId, dealDate) {
     return new Promise(function (resolve, reject) {
         // 获取此股票的指定交易日的RSI数据
-        let query = connection.query('SELECT rsi.stock_id, stock.stock_name, rsi.rsi1, rsi.rsi2, rsi.rsi3, ' +
-            'DATE_FORMAT(rsi.`date`, "%Y-%m-%d") as `date` ' +
-            'FROM t_stock_rsi rsi, t_stock_list stock ' +
-            'WHERE rsi.stock_id = ? AND rsi.stock_id = stock.stock_id AND DATE_FORMAT(rsi.`date`, "%Y-%m-%d") = ?',
-            [stockId, dealDate],
+        let query = connection.query('SELECT rsi.stock_id, stock.stock_name, t_trans.close, rsi.rsi1, rsi.rsi2, rsi.rsi3, ' +
+            'DATE_FORMAT(rsi.`date`, "%Y-%m-%d") as `date`, stock.industry ' +
+            'FROM t_stock_rsi rsi, t_stock_list stock, t_stock_transaction_history t_trans ' +
+            'WHERE rsi.stock_id = ? AND rsi.stock_id = stock.stock_id AND DATE_FORMAT(rsi.`date`, "%Y-%m-%d") = ? ' +
+            ' AND t_trans.stock_id = stock.stock_id AND DATE_FORMAT(t_trans.`date`, "%Y-%m-%d") = ? ',
+            [stockId, dealDate, dealDate],
             function (err, result) {
                 if (err) {
                     reject(err);
@@ -724,11 +719,11 @@ function getStocksRSI (db, stocks, dealDate) {
  * @param db 数据库连接
  * @param dealDate 交易日期
  */
-function getStockAnalysisData (db, dealDate) {
+function getStockAnalysisData (db, dealDate, topLimit, topCount) {
     return new Promise(function (resolve, reject) {
         co(function* () {
             // 获取每个行业的近期涨停最多的股票
-            let topStocks = yield getTopStocksPerIndustry(db, dealDate);
+            let topStocks = yield getTopStocksPerIndustry(db, dealDate, topLimit, topCount);
             // 获取对应股票的RSI指数
             let stockRSIs = yield getStocksRSI(db, topStocks, dealDate);
 

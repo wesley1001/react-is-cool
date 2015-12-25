@@ -41,6 +41,7 @@ app.use('/fixed-data-table', express.static(__dirname + '/node_modules/fixed-dat
 app.use('/immutable', express.static(__dirname + '/node_modules/immutable/dist/'));
 app.use('/d3', express.static(__dirname + '/node_modules/d3/'));
 app.use('/react-stockcharts', express.static(__dirname + '/node_modules/react-stockcharts/dist/'));
+app.use('/react-progress-bar-plus', express.static(__dirname + '/node_modules/react-progress-bar-plus/dist/'));
 
 /**
  * 连接MySQL数据库

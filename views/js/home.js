@@ -1,6 +1,7 @@
 'use strict'
 
 let parseDate = d3.time.format("%Y-%m-%d").parse;
+let formatDate = d3.time.format("%Y-%m-%d");
 
 let { Button, Input, Modal, Grid, Row, Col, Glyphicon } = ReactBootstrap;
 
@@ -141,8 +142,53 @@ const TextCell = ({rowIndex, data, col, ...props}) => (
 );
 
 let StockTable = React.createClass({
+    handleNextTransDayChange: function(data) {
+        this.setState({nextTransDay: data});
+    },
+    getLastTransData: function() {
+        if (this.state.selectedStockId) {
+            let nextTransDate = new Date();
+
+            if (this.state.nextTransDay) {
+                nextTransDate = new Date((new Date(parseDate(this.state.selectedDealDate))).getTime() +
+                    this.state.nextTransDay * 24 * 60 * 60 * 1000);
+            }
+
+            $.ajax({
+                url: "/api/stock/transaction",
+                dataType: 'json',
+                data: {
+                    dealDate: formatDate(nextTransDate),
+                    stockId: this.state.selectedStockId
+                },
+                cache: false,
+                success: function(data) {
+                    data.forEach((d, i) => {
+                        d.date = new Date(parseDate(d.date).getTime());
+                        d.open = +d.open;
+                        d.high = +d.high;
+                        d.low = +d.low;
+                        d.close = +d.close;
+                        d.volume = (+d.volume) / 100;   // 需要将股转成手
+                        // console.log(d);
+                    });
+
+                    console.log(data);
+
+                    /* change the type from hybrid to svg to compare the performance between svg and canvas */
+                    ReactDOM.render(
+                    <CandleStickStockScaleChartWithVolumeHistogramV3 data={data} type="hybrid" />,
+                        document.getElementById("chart"));
+
+                }.bind(this),
+                error: function(xhr, status, err) {
+                    console.error("/api/stock/transaction", status, err.toString());
+                }.bind(this)
+            });
+        }
+    },
     getInitialState: function() {
-        return { selectedStockName: "" };
+        return { selectedStockId: null, selectedStockName: "", selectedDealDate: null };
     },
     render: function() {
         let self = this;
@@ -158,7 +204,11 @@ let StockTable = React.createClass({
                     rowClassNameGetter={function(rowIndex) { return ''; }}
                     onRowClick={
                         function(e, rowIndex) {
-                            self.setState({selectedStockName: "K线图 - " + self.props.data[rowIndex].stock_name});
+                            self.setState({
+                                selectedStockId: self.props.data[rowIndex].stock_id,
+                                selectedStockName: "K线图 - " + self.props.data[rowIndex].stock_name,
+                                selectedDealDate: self.props.data[rowIndex].date
+                            });
 
                             $.ajax({
                                 url: "/api/stock/transaction",
@@ -225,11 +275,15 @@ let StockTable = React.createClass({
                         width={100}
                     />
                 </Table>
+                <small>* 点击股票可以查看该股票的K线图</small>
                 <hr />
                 <h3>{this.state.selectedStockName}</h3>
                 <div id="chart" ></div>
                 <h1 />
-                <Button onClick={this.close}>最新走势</Button>
+                <CheckOptionBox label="查看随后X天走势" holder="请输入想要看的随后走势天数（如果不输入则默认为到当前日期）。样例：7"
+                    defaultChecked={false}
+                    onContentChange={this.handleNextTransDayChange} />
+                <Button onClick={this.getLastTransData}>查看随后走势</Button>
             </div>
         );
     }

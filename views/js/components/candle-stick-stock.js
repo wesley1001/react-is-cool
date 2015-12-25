@@ -20,7 +20,7 @@ class CandleStickStockScaleChartWithVolumeHistogramV3 extends React.Component {
                 data={data} type={type}>
 
                 <Chart id={1} yMousePointerDisplayLocation="right" yMousePointerDisplayFormat={(y) => y.toFixed(2)}
-                    height={400} padding={{ top: 10, right: 10, bottom: 50, left: 0 }} >
+                    height={400} padding={{ top: 10, right: 0, bottom: 50, left: 0 }} >
                     <YAxis axisAt="right" orient="right" ticks={5} />
                     <XAxis axisAt="bottom" orient="bottom" showTicks={false}/>
                     <DataSeries id={0} yAccessor={CandlestickSeries.yAccessor} >
@@ -69,10 +69,6 @@ CandleStickStockScaleChartWithVolumeHistogramV3.propTypes = {
 };
 
 CandleStickStockScaleChartWithVolumeHistogramV3.defaultProps = {
-    type: "svg",
-    fill: {
-        up: "#FF0000",
-        down: "#6BA583"
-    }
+    type: "svg"
 };
 CandleStickStockScaleChartWithVolumeHistogramV3 = fitWidth(CandleStickStockScaleChartWithVolumeHistogramV3);
